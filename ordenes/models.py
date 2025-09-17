@@ -13,8 +13,8 @@ class Cliente(models.Model):
         return f"{self.nombre} ({self.telefono})"
 
 class Equipo(models.Model):
-    imei = models.CharField(max_length=15)
-    serie = models.CharField(max_length=50)
+    imei = models.CharField(max_length=30, blank=True, null=True, unique=True)
+    serie = models.CharField(max_length=30, blank=True, null=True, unique=True) 
     tipo = models.CharField(max_length=50)     # Ej: celular, tablet, notebook
     marca = models.CharField(max_length=50)    # Ej: Samsung, Apple
     modelo = models.CharField(max_length=50)   # Ej: A32, iPhone 11

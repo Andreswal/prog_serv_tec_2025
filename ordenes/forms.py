@@ -48,6 +48,19 @@ class EquipoForm(forms.ModelForm):
                 Submit('submit', 'Guardar Equipo', css_class='btn-primary')
             )
         )
+    def clean_imei(self):
+        imei = self.cleaned_data.get('imei')
+        if imei and Equipo.objects.filter(imei=imei).exists():
+            raise forms.ValidationError("Ya existe un equipo con este IMEI.")
+        return imei
+    
+    def clean_serie(self):
+        serie = self.cleaned_data.get('serie')
+        if serie and Equipo.objects.filter(serie=serie).exists():
+            raise forms.ValidationError("Ya existe un equipo con este número de serie.")
+        return serie
+    
+    
 
 class OrdenForm(forms.ModelForm):
     class Meta:

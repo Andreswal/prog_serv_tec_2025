@@ -6,35 +6,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
 </head>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-$('#busquedaCliente').on('input', function() {
-  const query = $(this).val();
-  $.get('/ordenes/buscar-clientes/', { q: query }, function(data) {
-    const resultados = data.clientes;
-    const lista = $('#resultadosCliente');
-    lista.empty();
-    resultados.forEach(cliente => {
-      lista.append(`
-        <li class="list-group-item list-group-item-action" onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre}', '${cliente.telefono}', '${cliente.email}', '${cliente.direccion}', '${cliente.localidad}', '${cliente.provincia}', '${cliente.comentarios}')">
-          ${cliente.nombre} - ${cliente.telefono}
-        </li>
-      `);
-    });
-  });
-});
 
-function seleccionarCliente(id, nombre, telefono, email, direccion, localidad, provincia, comentarios) {
-  $('#id_nombre').val(nombre);
-  $('#id_telefono').val(telefono);
-  $('#id_email').val(email);
-  $('#id_direccion').val(direccion);
-  $('#id_localidad').val(localidad);
-  $('#id_provincia').val(provincia);
-  $('#id_comentarios').val(comentarios);
-  $('#clienteModal').modal('hide');
-}
-</script>
 
 <!-- Popper.js y Bootstrap JS (necesarios para que el modal funcione) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -69,28 +41,106 @@ function seleccionarCliente(id, nombre, telefono, email, direccion, localidad, p
         <button type="submit" class="btn btn-success mt-3">Guardar Orden</button>
     </form>
 
-    <!-- Botón para abrir el modal -->
-<button type="button" class="btn btn-info mb-3" data-toggle="modal" data-target="#clienteModal">
-    Buscar Cliente Existente
-  </button>
-  
-  <!-- Modal -->
-  <div class="modal fade" id="clienteModal" tabindex="-1" role="dialog" aria-labelledby="clienteModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Buscar Cliente</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div class="modal-body">
-          <input type="text" id="busquedaCliente" class="form-control" placeholder="Escribí el nombre o teléfono...">
-          <ul id="resultadosCliente" class="list-group mt-3"></ul>
+    
+    
+    <!-- Modal -->
+    <div class="modal fade" id="clienteModal" tabindex="-1" role="dialog" aria-labelledby="clienteModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="clienteModalLabel">Buscar Cliente</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <input type="text" id="busquedaCliente" class="form-control" placeholder="Escribí el nombre o teléfono...">
+            <ul id="resultadosCliente" class="list-group mt-3"></ul>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-  
-</body>
-</html>
+    
+    <!-- Scripts necesarios -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+      $('#busquedaCliente').on('input', function() {
+        const query = $(this).val();
+        $.get('/ordenes/buscar-clientes/', { q: query }, function(data) {
+          const resultados = data.clientes;
+          const lista = $('#resultadosCliente');
+          lista.empty();
+      
+          resultados.forEach(cliente => {
+            let equiposHTML = '';
+            if (cliente.equipos && cliente.equipos.length > 0) {
+              equiposHTML = '<ul class="mt-2 text-muted small">';
+                cliente.equipos.forEach(eq => {
+                  const safeEq = eq.replace(/'/g, "\\'");
+                  equiposHTML += `<li onclick="autocompletarEquipo('${safeEq}')" style="cursor:pointer;">${safeEq}</li>`;
+                });
+                
+              equiposHTML += '</ul>';
+            }
+      
+            lista.append(`
+              <li class="list-group-item list-group-item-action" onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre}', '${cliente.telefono}', '${cliente.email}', '${cliente.direccion}', '${cliente.localidad}', '${cliente.provincia}', '${cliente.comentarios}')">
+                <strong>${cliente.nombre}</strong> - ${cliente.telefono}
+                ${equiposHTML}
+              </li>
+            `);
+          });
+        });
+      });
+      
+      function autocompletarEquipo(texto) {
+        const partes = texto.split(' (IMEI:');
+        const info = partes[0].split(' ');
+        $('#id_tipo').val(info[0]);
+        $('#id_marca').val(info[1]);
+        $('#id_modelo').val(info.slice(2).join(' '));
+
+        if (partes.length > 1) {
+          const resto = partes[1].split(' Serie:');
+          const imei = resto[0].trim();
+          const serie = resto[1] ? resto[1].replace(')', '').trim() : '';
+          $('#id_imei').val(imei);
+          $('#id_serie').val(serie);
+        }
+      }
+
+      
+      function seleccionarCliente(id, nombre, telefono, email, direccion, localidad, provincia, comentarios) {
+        $('#id_nombre').val(nombre);
+        $('#id_telefono').val(telefono);
+        $('#id_email').val(email);
+        $('#id_direccion').val(direccion);
+        $('#id_localidad').val(localidad);
+        $('#id_provincia').val(provincia);
+        $('#id_comentarios').val(comentarios);
+        $('#clienteModal').modal('hide');
+      }
+      </script>
+      
+
+<script>
+  $('#id_imei').on('blur', function() {
+    const imei = $(this).val();
+    if (imei) {
+      $.get('/ordenes/buscar-equipo/', { imei: imei }, function(data) {
+        if (data.equipo) {
+          $('#id_tipo').val(data.equipo.tipo);
+          $('#id_marca').val(data.equipo.marca);
+          $('#id_modelo').val(data.equipo.modelo);
+          $('#id_serie').val(data.equipo.serie);
+        }
+      });
+    }
+  });
+  </script>
+      
+      
+    </body>
+    </html>

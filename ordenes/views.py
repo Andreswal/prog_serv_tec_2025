@@ -51,13 +51,20 @@ def crear_orden_integrada(request):
     })
 
 from django.http import JsonResponse
-from .models import Cliente
+from .models import Cliente, Equipo, Orden
 
 def buscar_clientes(request):
     query = request.GET.get('q', '')
     resultados = Cliente.objects.filter(nombre__icontains=query)[:10]
-    data = [
-        {
+    data = []
+    for cliente in resultados:
+        # Buscar equipos relacionados a través de órdenes
+        equipos = Equipo.objects.filter(orden__cliente=cliente).distinct()
+        equipos_data = [
+            f"{e.tipo} {e.marca} {e.modelo} (IMEI: {e.imei or 'N/A'} Serie: {e.serie or 'N/A'})"
+            for e in equipos
+        ]
+        data.append({
             'id': cliente.id,
             'nombre': cliente.nombre,
             'telefono': cliente.telefono,
@@ -66,7 +73,26 @@ def buscar_clientes(request):
             'localidad': cliente.localidad,
             'provincia': cliente.provincia,
             'comentarios': cliente.comentarios,
-        }
-        for cliente in resultados
-    ]
+            'equipos': equipos_data,
+        })
     return JsonResponse({'clientes': data})
+
+
+from django.http import JsonResponse
+from .models import Equipo
+
+def buscar_equipo_por_imei(request):
+    imei = request.GET.get('imei', '')
+    try:
+        equipo = Equipo.objects.get(imei=imei)
+        data = {
+            'equipo': {
+                'tipo': equipo.tipo,
+                'marca': equipo.marca,
+                'modelo': equipo.modelo,
+                'serie': equipo.serie,
+            }
+        }
+    except Equipo.DoesNotExist:
+        data = {'equipo': None}
+    return JsonResponse(data)
