@@ -1,0 +1,96 @@
+{% load crispy_forms_tags %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Registrar Orden Completa</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+</head>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$('#busquedaCliente').on('input', function() {
+  const query = $(this).val();
+  $.get('/ordenes/buscar-clientes/', { q: query }, function(data) {
+    const resultados = data.clientes;
+    const lista = $('#resultadosCliente');
+    lista.empty();
+    resultados.forEach(cliente => {
+      lista.append(`
+        <li class="list-group-item list-group-item-action" onclick="seleccionarCliente(${cliente.id}, '${cliente.nombre}', '${cliente.telefono}', '${cliente.email}', '${cliente.direccion}', '${cliente.localidad}', '${cliente.provincia}', '${cliente.comentarios}')">
+          ${cliente.nombre} - ${cliente.telefono}
+        </li>
+      `);
+    });
+  });
+});
+
+function seleccionarCliente(id, nombre, telefono, email, direccion, localidad, provincia, comentarios) {
+  $('#id_nombre').val(nombre);
+  $('#id_telefono').val(telefono);
+  $('#id_email').val(email);
+  $('#id_direccion').val(direccion);
+  $('#id_localidad').val(localidad);
+  $('#id_provincia').val(provincia);
+  $('#id_comentarios').val(comentarios);
+  $('#clienteModal').modal('hide');
+}
+</script>
+
+<!-- Popper.js y Bootstrap JS (necesarios para que el modal funcione) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+<body class="container mt-4">
+    <h1>Registrar Orden Completa</h1>
+    <form method="post">
+        {% csrf_token %}
+        <h3>Cliente</h3>
+        <div class="form-row">
+          <div class="col-md-10">
+            {{ cliente_form.nombre|as_crispy_field }}
+          </div>
+          <div class="col-md-2">
+    <button type="button" class="btn btn-info w-100" data-toggle="modal" data-target="#clienteModal">
+      Buscar Cliente
+    </button>
+          </div>
+        </div>
+        {{ cliente_form.telefono|as_crispy_field }}
+        {{ cliente_form.email|as_crispy_field }}
+        {{ cliente_form.direccion|as_crispy_field }}
+        {{ cliente_form.localidad|as_crispy_field }}
+        {{ cliente_form.provincia|as_crispy_field }}
+        {{ cliente_form.comentarios|as_crispy_field }}
+
+        <h3>Equipo</h3>
+        {{ equipo_form|crispy }}
+        <h3>Orden</h3>
+        {{ orden_form|crispy }}
+        <button type="submit" class="btn btn-success mt-3">Guardar Orden</button>
+    </form>
+
+    <!-- Botón para abrir el modal -->
+<button type="button" class="btn btn-info mb-3" data-toggle="modal" data-target="#clienteModal">
+    Buscar Cliente Existente
+  </button>
+  
+  <!-- Modal -->
+  <div class="modal fade" id="clienteModal" tabindex="-1" role="dialog" aria-labelledby="clienteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Buscar Cliente</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <input type="text" id="busquedaCliente" class="form-control" placeholder="Escribí el nombre o teléfono...">
+          <ul id="resultadosCliente" class="list-group mt-3"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+</body>
+</html>

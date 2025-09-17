@@ -1,0 +1,23 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}ProgSerTec25{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">ProgSerTec25</a>
+  </nav>
+  <main class="container mt-4">
+    {% block content %}
+    {# Aquí se insertará el contenido de cada template hijo #}
+    {% endblock %}
+  </main>
+  <footer class="text-center mt-5">
+    © 2025 ProgSerTec25
+  </footer>
+</body>
+</html>

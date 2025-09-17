@@ -1,3 +1,8 @@
 from django.contrib import admin
+from .models import Cliente, Equipo, Orden
 
-# Register your models here.
+admin.site.register(Cliente)
+admin.site.register(Equipo)
+admin.site.register(Orden)
+
+
