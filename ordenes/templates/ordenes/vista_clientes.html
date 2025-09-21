@@ -1,0 +1,14 @@
+<h3>👤 Clientes registrados</h3>
+<table class="table table-striped">
+  <thead><tr><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Localidad</th></tr></thead>
+  <tbody>
+    {% for cliente in clientes %}
+    <tr>
+      <td>{{ cliente.nombre }}</td>
+      <td>{{ cliente.telefono }}</td>
+      <td>{{ cliente.email }}</td>
+      <td>{{ cliente.localidad }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

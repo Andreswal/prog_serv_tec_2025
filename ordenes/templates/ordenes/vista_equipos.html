@@ -1,0 +1,15 @@
+<h3>📦 Equipos en el taller</h3>
+<table class="table table-striped">
+  <thead><tr><th>Tipo</th><th>Marca</th><th>Modelo</th><th>IMEI</th><th>Serie</th></tr></thead>
+  <tbody>
+    {% for equipo in equipos %}
+    <tr>
+      <td>{{ equipo.tipo }}</td>
+      <td>{{ equipo.marca }}</td>
+      <td>{{ equipo.modelo }}</td>
+      <td>{{ equipo.imei }}</td>
+      <td>{{ equipo.serie }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

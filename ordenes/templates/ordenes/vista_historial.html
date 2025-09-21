@@ -1,0 +1,27 @@
+<h3>📋 Historial de órdenes</h3>
+<table class="table table-striped">
+  <thead><tr><th>ID</th><th>Cliente</th><th>Equipo</th><th>Estado</th><th>Ingreso</th></tr></thead>
+  <tbody>
+    {% for orden in ordenes %}
+    <tr>
+      <td>{{ orden.id }}</td>
+      <td>{{ orden.cliente.nombre }}</td>
+      <td>{{ orden.equipo.marca }} {{ orden.equipo.modelo }}</td>
+      <td>{{ orden.estado }}</td>
+      <td>{{ orden.fecha_ingreso|date:"d/m/Y H:i" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
+<form method="get" class="form-inline mb-3">
+  <label for="estado" class="mr-2">Filtrar por estado:</label>
+  <select name="estado" id="estado" class="form-control mr-2">
+    <option value="">-- Todos --</option>
+    <option value="Pendiente">Pendiente</option>
+    <option value="Listo">Listo</option>
+    <option value="Entregado">Entregado</option>
+  </select>
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+</form>

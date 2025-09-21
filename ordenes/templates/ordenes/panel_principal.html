@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Panel Principal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    .tab-pane { min-height: 600px; }
+    .loader { text-align: center; padding: 50px; font-size: 1.2em; color: #888; }
+  </style>
+</head>
+<body class="container mt-4">
+  <h1 class="mb-4">Panel Principal del Técnico</h1>
+
+  <!-- Pestañas tipo Excel -->
+  <ul class="nav nav-tabs" id="panelTabs" role="tablist">
+  <li class="nav-item">
+    <a class="nav-link active" data-url="{% url 'crear_orden_integrada' %}" data-toggle="tab" href="#orden">🛠 Crear Orden</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-url="{% url 'vista_equipos' %}" data-toggle="tab" href="#equipos">📦 Equipos en Taller</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-url="{% url 'vista_clientes' %}" data-toggle="tab" href="#clientes">👤 Buscar Cliente</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-url="{% url 'vista_historial' %}" data-toggle="tab" href="#historial">📋 Historial</a>
+  </li>
+</ul>
+
+  <!-- Contenido dinámico -->
+  <div class="tab-content mt-3">
+    <div class="tab-pane fade show active" id="orden"><div class="loader">Cargando...</div></div>
+    <div class="tab-pane fade" id="equipos"><div class="loader">Cargando...</div></div>
+    <div class="tab-pane fade" id="clientes"><div class="loader">Cargando...</div></div>
+    <div class="tab-pane fade" id="historial"><div class="loader">Cargando...</div></div>
+  </div>
+
+  <script>
+    function cargarContenido(tabId, url) {
+      $('#' + tabId).html('<div class="loader">Cargando...</div>');
+      $.get(url, function(data) {
+        $('#' + tabId).html(data);
+      }).fail(function() {
+        $('#' + tabId).html('<div class="loader text-danger">Error al cargar el contenido.</div>');
+      });
+    }
+
+    // Cargar la primera pestaña al iniciar
+    $(document).ready(function() {
+      const primera = $('.nav-link.active');
+      cargarContenido(primera.attr('href').substring(1), primera.data('url'));
+    });
+
+    // Cargar contenido al cambiar de pestaña
+    $('.nav-link').on('shown.bs.tab', function(e) {
+      const tabId = $(e.target).attr('href').substring(1);
+      const url = $(e.target).data('url');
+      cargarContenido(tabId, url);
+    });
+  </script>
+</body>
+</html>

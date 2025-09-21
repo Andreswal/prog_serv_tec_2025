@@ -33,8 +33,18 @@ def crear_orden_integrada(request):
         equipo_form = EquipoForm(request.POST)
         orden_form = OrdenForm(request.POST)
         if cliente_form.is_valid() and equipo_form.is_valid() and orden_form.is_valid():
-            cliente = cliente_form.save()
-            equipo = equipo_form.save()
+            cliente_data = cliente_form.cleaned_data
+            cliente, creado = Cliente.objects.get_or_create(
+                nombre=cliente_data['nombre'],
+                telefono=cliente_data['telefono'],
+                defaults=cliente_data
+            )
+            imei = equipo_form.cleaned_data.get('imei')
+            equipo = Equipo.objects.filter(imei=imei).first()
+            
+            if not equipo:
+                equipo = equipo_form.save()
+            
             orden = orden_form.save(commit=False)
             orden.cliente = cliente
             orden.equipo = equipo
@@ -96,3 +106,39 @@ def buscar_equipo_por_imei(request):
     except Equipo.DoesNotExist:
         data = {'equipo': None}
     return JsonResponse(data)
+
+from django.shortcuts import render
+
+def panel_principal(request):
+    return render(request, 'ordenes/panel_principal.html')
+
+
+from django.shortcuts import render
+from .models import Equipo
+
+def vista_equipos(request):
+    equipos = Equipo.objects.all()
+    return render(request, 'ordenes/vista_equipos.html', {'equipos': equipos})
+
+
+from .models import Cliente
+
+def vista_clientes(request):
+    clientes = Cliente.objects.all()
+    return render(request, 'ordenes/vista_clientes.html', {'clientes': clientes})
+
+
+from django.shortcuts import render
+from .models import Orden
+
+def vista_historial(request):
+    estado = request.GET.get('estado')  # ← Captura el estado desde la URL
+    if estado:
+        ordenes = Orden.objects.filter(estado=estado)
+    else:
+        ordenes = Orden.objects.all().order_by('-fecha_ingreso')[:50]
+
+    return render(request, 'ordenes/vista_historial.html', {
+        'ordenes': ordenes,
+        'estado_seleccionado': estado  # ← Para que el template recuerde la opción elegida
+    })

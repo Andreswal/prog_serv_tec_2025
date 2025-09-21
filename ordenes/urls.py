@@ -4,8 +4,13 @@ from .views import (
     OrdenCreateView,
     crear_orden,
     crear_orden_integrada,
-    buscar_clientes
+    buscar_clientes,
+    panel_principal,
+    vista_equipos,
+    vista_clientes,
+    vista_historial,
 )
+
 
 
 urlpatterns = [
@@ -14,7 +19,11 @@ urlpatterns = [
     path('crear-integrada/', crear_orden_integrada, name='crear_orden_integrada'),
     path('buscar-clientes/', buscar_clientes, name='buscar_clientes'),
     path('buscar-equipo/', buscar_equipo_por_imei, name='buscar_equipo_por_imei'),
-    
+    path('', panel_principal, name='panel_principal'),
+    path('vista-equipos/', vista_equipos, name='vista_equipos'),
+    path('vista-clientes/', vista_clientes, name='vista_clientes'),
+    path('vista-historial/', vista_historial, name='vista_historial'),
+
 ]
 
 
