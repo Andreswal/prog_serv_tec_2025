@@ -10,7 +10,10 @@ from .views import (
     vista_clientes,
     vista_historial,
 )
-
+from .views import detalle_orden_modal
+from .views import nuevo_cliente_modal
+from .views import editar_cliente_modal
+from .views import eliminar_cliente
 
 
 urlpatterns = [
@@ -23,6 +26,11 @@ urlpatterns = [
     path('vista-equipos/', vista_equipos, name='vista_equipos'),
     path('vista-clientes/', vista_clientes, name='vista_clientes'),
     path('vista-historial/', vista_historial, name='vista_historial'),
+    path('detalle/<int:orden_id>/', detalle_orden_modal, name='detalle_orden_modal'),
+    path('clientes/nuevo/', nuevo_cliente_modal, name='nuevo_cliente_modal'),
+    path('clientes/editar/<int:cliente_id>/', editar_cliente_modal, name='editar_cliente_modal'),
+    path('clientes/eliminar/<int:cliente_id>/', eliminar_cliente, name='eliminar_cliente'),
+    
 
 ]
 

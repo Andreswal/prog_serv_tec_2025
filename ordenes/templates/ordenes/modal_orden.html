@@ -1,0 +1,36 @@
+<h5>🧾 Datos del Cliente</h5>
+<ul>
+  <li><strong>Nombre:</strong> {{ cliente.nombre }}</li>
+  <li><strong>Teléfono:</strong> {{ cliente.telefono }}</li>
+  <li><strong>Email:</strong> {{ cliente.email }}</li>
+  <li><strong>Dirección:</strong> {{ cliente.direccion }}</li>
+  <li><strong>Localidad:</strong> {{ cliente.localidad }}</li>
+  <li><strong>Provincia:</strong> {{ cliente.provincia }}</li>
+</ul>
+
+<h5>📦 Datos del Equipo</h5>
+<ul>
+  <li><strong>Tipo:</strong> {{ equipo.tipo }}</li>
+  <li><strong>Marca:</strong> {{ equipo.marca }}</li>
+  <li><strong>Modelo:</strong> {{ equipo.modelo }}</li>
+  <li><strong>IMEI:</strong> {{ equipo.imei }}</li>
+  <li><strong>Serie:</strong> {{ equipo.serie }}</li>
+  <li><strong>Accesorios:</strong> {{ equipo.accesorios }}</li>
+  <li><strong>Estado general:</strong> {{ equipo.estado_general }}</li>
+</ul>
+
+<h5>🛠 Editar Orden</h5>
+<form method="post" id="formOrden">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-success">Guardar cambios</button>
+</form>
+
+<script>
+$('#formOrden').on('submit', function(e) {
+  e.preventDefault();
+  $.post(`/ordenes/detalle/{{ orden.id }}/`, $(this).serialize(), function(data) {
+    $('#modalContenido').html('<div class="alert alert-success">Cambios guardados correctamente.</div>');
+  });
+});
+</script>

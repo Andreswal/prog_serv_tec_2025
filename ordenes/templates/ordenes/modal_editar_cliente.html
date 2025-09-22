@@ -1,0 +1,27 @@
+<form method="post" id="formEditarCliente">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+  </form>
+  
+  <script>
+  $('#formEditarCliente').on('submit', function(e) {
+    e.preventDefault();
+    $.post(`/clientes/editar/{{ cliente.id }}/`, $(this).serialize(), function(data) {
+      $('#modalEditarCliente').modal('hide');
+  
+      // Actualizar la fila del cliente
+      const fila = $(`#cliente-${data.id}`);
+      if (fila.length) {
+        fila.find('.nombre').text(data.nombre);
+        fila.find('.telefono').text(data.telefono);
+        fila.find('.email').text(data.email || '');
+        fila.find('.localidad').text(data.localidad || '');
+        fila.find('.provincia').text(data.provincia || '');
+      }
+  
+      alert('Cliente actualizado correctamente');
+    });
+  });
+  </script>
+  

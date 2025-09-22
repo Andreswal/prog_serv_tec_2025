@@ -1,14 +1,136 @@
-<h3>👤 Clientes registrados</h3>
-<table class="table table-striped">
-  <thead><tr><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Localidad</th></tr></thead>
+<h3>👤 Clientes</h3>
+<button class="btn btn-success mb-3" onclick="abrirModalCliente()">Nuevo Cliente</button>
+
+<form method="get" class="form-inline mb-3">
+  <input type="text" name="nombre" value="{{ nombre }}" class="form-control mr-2" placeholder="Nombre">
+  <input type="text" name="telefono" value="{{ telefono }}" class="form-control mr-2" placeholder="Teléfono">
+  <input type="text" name="email" value="{{ email }}" class="form-control mr-2" placeholder="Email">
+  <button type="submit" class="btn btn-primary">Filtrar</button>
+</form>
+
+<table class="table table-bordered" id="tablaClientes">
+  <thead>
+    <tr>
+      <th><a href="?ordenar_por=nombre&direccion={% if ordenar_por == 'nombre' and direccion == 'asc' %}desc{% else %}asc{% endif %}">Nombre</a></th>
+      <th>Teléfono</th>
+      <th><a href="?ordenar_por=localidad&direccion={% if ordenar_por == 'localidad' and direccion == 'asc' %}desc{% else %}asc{% endif %}">Localidad</a></th>
+      <th><a href="?ordenar_por=provincia&direccion={% if ordenar_por == 'provincia' and direccion == 'asc' %}desc{% else %}asc{% endif %}">Provincia</a></th>
+      <th>Email</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  
   <tbody>
     {% for cliente in clientes %}
-    <tr>
-      <td>{{ cliente.nombre }}</td>
-      <td>{{ cliente.telefono }}</td>
-      <td>{{ cliente.email }}</td>
-      <td>{{ cliente.localidad }}</td>
+    <tr id="cliente-{{ cliente.id }}">
+      <td class="nombre">{{ cliente.nombre }}</td>
+      <td class="telefono">{{ cliente.telefono }}</td>
+      <td class="email">{{ cliente.email }}</td>
+      <td class="localidad">{{ cliente.localidad }}</td>
+      <td class="provincia">{{ cliente.provincia }}</td>
+      <td>
+        <button class="btn btn-sm btn-warning" onclick="abrirModalEditarCliente({{ cliente.id }})">Editar</button>
+        <button class="btn btn-sm btn-danger" onclick="confirmarEliminarCliente({{ cliente.id }})">Eliminar</button>
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+
+
+
+<div class="modal fade" id="modalCliente" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo Cliente</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modalClienteContenido">
+        <div class="text-center text-muted">Cargando...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function abrirModalCliente() {
+    $('#modalClienteContenido').html('<div class="text-center text-muted">Cargando...</div>');
+    $('#modalCliente').modal('show');
+    $.get('/clientes/nuevo/', function(data) {
+      $('#modalClienteContenido').html(data);
+    });
+  }
+  </script>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+
+
+<div class="modal fade" id="modalEditarCliente" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar Cliente</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modalEditarContenido">
+        <div class="text-center text-muted">Cargando...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function abrirModalEditarCliente(clienteId) {
+    $('#modalEditarContenido').html('<div class="text-center text-muted">Cargando...</div>');
+    $('#modalEditarCliente').modal('show');
+    $.get(`/clientes/editar/${clienteId}/`, function(data) {
+      $('#modalEditarContenido').html(data);
+    });
+  }
+  </script>
+  
+
+  <div class="modal fade" id="modalConfirmarEliminar" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Confirmar eliminación</h5>
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          ¿Estás seguro de que querés eliminar este cliente?
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="btnEliminarConfirmado">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let clienteAEliminar = null;
+    
+    function confirmarEliminarCliente(clienteId) {
+      clienteAEliminar = clienteId;
+      $('#modalConfirmarEliminar').modal('show');
+    }
+    
+    $('#btnEliminarConfirmado').on('click', function() {
+      $.ajax({
+        url: `/clientes/eliminar/${clienteAEliminar}/`,
+        type: 'POST',
+        data: {
+          csrfmiddlewaretoken: '{{ csrf_token }}'
+        },
+        success: function() {
+          $(`#cliente-${clienteAEliminar}`).remove();
+          $('#modalConfirmarEliminar').modal('hide');
+          alert('Cliente eliminado correctamente');
+        }
+      });
+    });
+    </script>
+    

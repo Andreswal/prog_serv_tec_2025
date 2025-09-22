@@ -114,18 +114,120 @@ def panel_principal(request):
 
 
 from django.shortcuts import render
-from .models import Equipo
+from .models import Orden
 
 def vista_equipos(request):
-    equipos = Equipo.objects.all()
-    return render(request, 'ordenes/vista_equipos.html', {'equipos': equipos})
+    estado = request.GET.get('estado', '')
+    cliente = request.GET.get('cliente', '')
+    marca = request.GET.get('marca', '')
+    modelo = request.GET.get('modelo', '')
 
+    ordenes = Orden.objects.select_related('equipo', 'cliente')
 
+    if estado:
+        ordenes = ordenes.filter(estado__icontains=estado)
+    if cliente:
+        ordenes = ordenes.filter(cliente__nombre__icontains=cliente)
+    if marca:
+        ordenes = ordenes.filter(equipo__marca__icontains=marca)
+    if modelo:
+        ordenes = ordenes.filter(equipo__modelo__icontains=modelo)
+
+    ordenes = ordenes.order_by('-fecha_ingreso')
+
+    return render(request, 'ordenes/vista_equipos.html', {
+        'ordenes': ordenes,
+        'estado': estado,
+        'cliente': cliente,
+        'marca': marca,
+        'modelo': modelo,
+    })
+    
+
+from django.shortcuts import render
 from .models import Cliente
 
 def vista_clientes(request):
+    nombre = request.GET.get('nombre', '')
+    telefono = request.GET.get('telefono', '')
+    email = request.GET.get('email', '')
+    ordenar_por = request.GET.get('ordenar_por', 'nombre')
+    direccion = request.GET.get('direccion', 'asc')
+
     clientes = Cliente.objects.all()
-    return render(request, 'ordenes/vista_clientes.html', {'clientes': clientes})
+
+    if nombre:
+        clientes = clientes.filter(nombre__icontains=nombre)
+    if telefono:
+        clientes = clientes.filter(telefono__icontains=telefono)
+    if email:
+        clientes = clientes.filter(email__icontains=email)
+
+    if direccion == 'desc':
+        ordenar_por = f'-{ordenar_por}'
+
+    clientes = clientes.order_by(ordenar_por)
+
+    return render(request, 'ordenes/vista_clientes.html', {
+        'clientes': clientes,
+        'nombre': nombre,
+        'telefono': telefono,
+        'email': email,
+        'ordenar_por': request.GET.get('ordenar_por', ''),
+        'direccion': direccion,
+    })
+
+
+
+from django.shortcuts import render
+from django.http import JsonResponse
+from .forms import ClienteForm
+
+def nuevo_cliente_modal(request):
+    if request.method == 'POST':
+        form = ClienteForm(request.POST)
+        if form.is_valid():
+            cliente = form.save()
+            return JsonResponse({
+                'id': cliente.id,
+                'nombre': cliente.nombre,
+                'telefono': cliente.telefono,
+                'email': cliente.email,
+                'direccion': cliente.direccion,
+                'localidad': cliente.localidad,
+                'provincia': cliente.provincia,
+                'comentarios': cliente.comentarios,
+            })
+    else:
+        form = ClienteForm()
+    return render(request, 'ordenes/modal_cliente.html', {'form': form})
+
+
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from .models import Cliente
+from .forms import ClienteForm
+
+def editar_cliente_modal(request, cliente_id):
+    cliente = get_object_or_404(Cliente, id=cliente_id)
+    if request.method == 'POST':
+        form = ClienteForm(request.POST, instance=cliente)
+        if form.is_valid():
+            cliente = form.save()
+            return JsonResponse({
+                'id': cliente.id,
+                'nombre': cliente.nombre,
+                'telefono': cliente.telefono,
+                'email': cliente.email,
+                'direccion': cliente.direccion,
+                'localidad': cliente.localidad,
+                'provincia': cliente.provincia,
+                'comentarios': cliente.comentarios,
+            })
+    else:
+        form = ClienteForm(instance=cliente)
+    return render(request, 'ordenes/modal_editar_cliente.html', {'form': form, 'cliente': cliente})
+
 
 
 from django.shortcuts import render
@@ -142,3 +244,43 @@ def vista_historial(request):
         'ordenes': ordenes,
         'estado_seleccionado': estado  # ← Para que el template recuerde la opción elegida
     })
+
+
+from django.shortcuts import get_object_or_404, render
+from django.http import HttpResponse
+from .models import Orden
+from .forms import OrdenForm
+
+def detalle_orden_modal(request, orden_id):
+    orden = get_object_or_404(Orden, id=orden_id)
+    cliente = orden.cliente
+    equipo = orden.equipo
+
+    if request.method == 'POST':
+        form = OrdenForm(request.POST, instance=orden)
+        if form.is_valid():
+            form.save()
+            return HttpResponse("Guardado")
+    else:
+        form = OrdenForm(instance=orden)
+
+    return render(request, 'ordenes/modal_orden.html', {
+        'form': form,
+        'orden': orden,
+        'cliente': cliente,
+        'equipo': equipo,
+    })
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+from .models import Cliente
+
+@csrf_exempt
+def eliminar_cliente(request, cliente_id):
+    if request.method == 'POST':
+        Cliente.objects.filter(id=cliente_id).delete()
+        return HttpResponse("Eliminado")
+    return HttpResponse("Método no permitido", status=405)
+
+
+

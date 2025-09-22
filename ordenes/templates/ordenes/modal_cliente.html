@@ -1,0 +1,30 @@
+<form method="post" id="formCliente">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Guardar</button>
+  </form>
+  
+  <script>
+    $('#formCliente').on('submit', function(e) {
+      e.preventDefault();
+      $.post('/clientes/nuevo/', $(this).serialize(), function(data) {
+        $('#modalCliente').modal('hide');
+    
+        // Agregar el nuevo cliente a la tabla
+        const nuevaFila = `
+          <tr>
+            <td>${data.nombre}</td>
+            <td>${data.telefono}</td>
+            <td>${data.email || ''}</td>
+            <td>${data.localidad || ''}</td>
+            <td>${data.provincia || ''}</td>
+          </tr>
+        `;
+        $('#tablaClientes tbody').prepend(nuevaFila);
+    
+        // Mostrar mensaje de éxito
+        alert('Cliente guardado correctamente');
+      });
+    });
+    </script>
+    
