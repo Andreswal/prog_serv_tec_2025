@@ -63,6 +63,15 @@ def crear_orden_integrada(request):
 from django.http import JsonResponse
 from .models import Cliente, Equipo, Orden
 
+from .models import Orden
+
+def vista_ordenes_parcial(request):
+    ordenes = Orden.objects.select_related('cliente', 'equipo').order_by('-fecha_ingreso')
+    return render(request, 'ordenes/vista_ordenes_parcial.html', {
+        'ordenes': ordenes
+    })
+
+
 def buscar_clientes(request):
     query = request.GET.get('q', '')
     resultados = Cliente.objects.filter(nombre__icontains=query)[:10]
@@ -143,6 +152,34 @@ def vista_equipos(request):
         'modelo': modelo,
     })
     
+def vista_equipos_parcial(request):
+    estado = request.GET.get('estado', '')
+    cliente = request.GET.get('cliente', '')
+    marca = request.GET.get('marca', '')
+    modelo = request.GET.get('modelo', '')
+
+    ordenes = Orden.objects.select_related('equipo', 'cliente')
+
+    if estado:
+        ordenes = ordenes.filter(estado__icontains=estado)
+    if cliente:
+        ordenes = ordenes.filter(cliente__nombre__icontains=cliente)
+    if marca:
+        ordenes = ordenes.filter(equipo__marca__icontains=marca)
+    if modelo:
+        ordenes = ordenes.filter(equipo__modelo__icontains=modelo)
+
+    ordenes = ordenes.order_by('-fecha_ingreso')
+
+    return render(request, 'ordenes/vista_equipos_parcial.html', {
+        'ordenes': ordenes,
+        'estado': estado,
+        'cliente': cliente,
+        'marca': marca,
+        'modelo': modelo,
+    })
+
+
 
 from django.shortcuts import render
 from .models import Cliente
@@ -177,6 +214,13 @@ def vista_clientes(request):
         'direccion': direccion,
     })
 
+from .models import Cliente
+
+def vista_clientes_parcial(request):
+    clientes = Cliente.objects.all().order_by('nombre')
+    return render(request, 'ordenes/vista_clientes_parcial.html', {
+        'clientes': clientes
+    })
 
 
 from django.shortcuts import render
@@ -245,6 +289,15 @@ def vista_historial(request):
         'estado_seleccionado': estado  # ← Para que el template recuerde la opción elegida
     })
 
+from .models import Orden
+
+def vista_historial_parcial(request):
+    historial = Orden.objects.select_related('cliente', 'equipo').order_by('-fecha_ingreso')
+    return render(request, 'ordenes/vista_historial_parcial.html', {
+        'historial': historial
+    })
+
+
 
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse
@@ -283,4 +336,6 @@ def eliminar_cliente(request, cliente_id):
     return HttpResponse("Método no permitido", status=405)
 
 
+def panel_principal(request):
+    return render(request, 'ordenes/panel_principal.html')
 

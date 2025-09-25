@@ -1,9 +1,6 @@
-{% extends 'base.html' %}
-
-{% block content %}
 <h3>📦 Equipos en el taller</h3>
 
-<form method="get" action="{% url 'vista_equipos' %}" class="form-inline mb-3">
+<form method="get" class="form-inline mb-3">
   <input type="text" name="cliente" value="{{ cliente }}" class="form-control mr-2" placeholder="Cliente">
   <input type="text" name="marca" value="{{ marca }}" class="form-control mr-2" placeholder="Marca">
   <input type="text" name="modelo" value="{{ modelo }}" class="form-control mr-2" placeholder="Modelo">
@@ -67,5 +64,3 @@ function abrirModal(ordenId) {
   });
 }
 </script>
-{% endblock %}
-

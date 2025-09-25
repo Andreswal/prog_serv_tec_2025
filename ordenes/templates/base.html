@@ -1,4 +1,5 @@
 
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -16,8 +17,68 @@
     {# Aquí se insertará el contenido de cada template hijo #}
     {% endblock %}
   </main>
+ 
+
+  <div id="escritorio" style="position: relative; width: 100%; height: 100vh; background: #f0f0f0;">
+    <!-- Acá se abrirán las ventanas flotantes -->
+  </div>
+  <div id="menu" style="position: fixed; top: 0; left: 0; background: #333; color: white; padding: 10px;">
+    <button onclick="abrirVentana('equipos', '/vista-equipos/')">📦 Equipos en Taller</button>
+    <button onclick="abrirVentana('clientes', '/vista-clientes/')">👤 Clientes</button>
+    <button onclick="abrirVentana('equipos', '/equipos/parcial/')">📦 Equipos en Taller</button>
+    <!-- Agregá más botones según tus módulos -->
+  </div>
+  
+  <script src="{% static 'js/ventanas.js' %}"></script>
+  
+</body>
+</html>
+
+
+<script>
+  function abrirVentana(id, url) {
+    if (document.getElementById('ventana-' + id)) {
+      // Si ya está abierta, la traemos al frente
+      document.getElementById('ventana-' + id).style.zIndex = Date.now();
+      return;
+    }
+  
+    const ventana = document.createElement('div');
+    ventana.id = 'ventana-' + id;
+    ventana.className = 'ventana-flotante';
+    ventana.style = `
+      position: absolute;
+      top: 60px;
+      left: 60px;
+      width: 800px;
+      height: 500px;
+      background: white;
+      border: 2px solid #444;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      z-index: ${Date.now()};
+      overflow: auto;
+    `;
+  
+    ventana.innerHTML = `
+      <div style="background: #222; color: white; padding: 5px; cursor: move;">
+        <span>${id.toUpperCase()}</span>
+        <button onclick="document.getElementById('ventana-${id}').remove()" style="float: right;">❌</button>
+      </div>
+      <div class="contenido-${id}" style="padding: 10px;">Cargando...</div>
+    `;
+  
+    document.getElementById('escritorio').appendChild(ventana);
+  
+    // Cargar contenido vía AJAX
+    fetch(url)
+      .then(res => res.text())
+      .then(html => {
+        ventana.querySelector('.contenido-' + id).innerHTML = html;
+      });
+  }
+  </script>
+  
+
   <footer class="text-center mt-5">
     © 2025 ProgSerTec25
   </footer>
-</body>
-</html>

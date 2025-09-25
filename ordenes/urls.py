@@ -14,7 +14,10 @@ from .views import detalle_orden_modal
 from .views import nuevo_cliente_modal
 from .views import editar_cliente_modal
 from .views import eliminar_cliente
-
+from .views import vista_equipos_parcial
+from .views import vista_clientes_parcial
+from .views import vista_ordenes_parcial
+from ordenes.views import panel_principal
 
 urlpatterns = [
     path('orden/nueva/', OrdenCreateView.as_view(), name='orden_nueva'),
@@ -30,7 +33,11 @@ urlpatterns = [
     path('clientes/nuevo/', nuevo_cliente_modal, name='nuevo_cliente_modal'),
     path('clientes/editar/<int:cliente_id>/', editar_cliente_modal, name='editar_cliente_modal'),
     path('clientes/eliminar/<int:cliente_id>/', eliminar_cliente, name='eliminar_cliente'),
-    
+    path('equipos/parcial/', vista_equipos_parcial, name='vista_equipos_parcial'),
+    path('clientes/parcial/', vista_clientes_parcial, name='vista_clientes_parcial'),
+    path('ordenes/parcial/', vista_ordenes_parcial, name='vista_ordenes_parcial'),
+    path('panel/', panel_principal, name='panel_principal'),
+
 
 ]
 

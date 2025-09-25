@@ -1,0 +1,26 @@
+<h3>👤 Lista de Clientes</h3>
+
+<table class="table table-bordered table-hover">
+  <thead class="thead-dark">
+    <tr>
+      <th>Nombre</th>
+      <th>Teléfono</th>
+      <th>Email</th>
+      <th>Dirección</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for cliente in clientes %}
+    <tr>
+      <td>{{ cliente.nombre }}</td>
+      <td>{{ cliente.telefono }}</td>
+      <td>{{ cliente.email }}</td>
+      <td>{{ cliente.direccion }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="4" class="text-center text-muted">No hay clientes registrados.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
