@@ -1,6 +1,10 @@
 <h3>👤 Lista de Clientes</h3>
 
-<table class="table table-bordered table-hover">
+<!-- Buscador -->
+<input type="text" id="filtroCliente" class="form-control mb-3" placeholder="Filtrar por nombre o teléfono...">
+
+<!-- Tabla de clientes -->
+<table id="tabla-clientes" class="table table-bordered table-hover table-sm">
   <thead class="thead-dark">
     <tr>
       <th>Nombre</th>
@@ -24,3 +28,15 @@
     {% endfor %}
   </tbody>
 </table>
+
+<!-- Filtro en tiempo real -->
+<script>
+  $('#filtroCliente').on('input', function() {
+    const filtro = $(this).val().toLowerCase();
+    $('#tabla-clientes tbody tr').each(function() {
+      const texto = $(this).text().toLowerCase();
+      $(this).toggle(texto.includes(filtro));
+    });
+  });
+</script>
+

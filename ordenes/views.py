@@ -1,20 +1,24 @@
-from django.shortcuts import render
+# ordenes/views.py (bloque completo y limpio)
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
+from django.db import transaction
+from django.http import JsonResponse, HttpResponse
 from django.views.generic.edit import CreateView
-from .models import Orden
-from .forms import OrdenForm
+from django.views.decorators.csrf import csrf_exempt
+
+from .models import Cliente, Equipo, Orden
+from .forms import ClienteForm, EquipoForm, OrdenForm
+
 
 class OrdenCreateView(CreateView):
     model = Orden
     form_class = OrdenForm
-    template_name = 'ordenes/orden_form.html'   # Ruta relativa dentro de templates/
-    success_url = reverse_lazy('orden_nueva')   # Vuelve al mismo form al crear la orden
+    template_name = 'ordenes/orden_form.html'
+    success_url = reverse_lazy('orden_nueva')  # ajusta si tu nombre de url es distinto
 
-
-from django.shortcuts import render, redirect
-from .forms import OrdenForm
 
 def crear_orden(request):
+    """Vista simple usando solo OrdenForm (si la usás en alguna parte)."""
     if request.method == 'POST':
         form = OrdenForm(request.POST)
         if form.is_valid():
@@ -24,46 +28,48 @@ def crear_orden(request):
         form = OrdenForm()
     return render(request, 'ordenes/crear_orden.html', {'form': form})
 
-from django.shortcuts import render, redirect
-from .forms import ClienteForm, EquipoForm, OrdenForm
 
 def crear_orden_integrada(request):
     if request.method == 'POST':
-        cliente_form = ClienteForm(request.POST)
-        equipo_form = EquipoForm(request.POST)
-        orden_form = OrdenForm(request.POST)
-        if cliente_form.is_valid() and equipo_form.is_valid() and orden_form.is_valid():
-            cliente_data = cliente_form.cleaned_data
-            cliente, creado = Cliente.objects.get_or_create(
-                nombre=cliente_data['nombre'],
-                telefono=cliente_data['telefono'],
-                defaults=cliente_data
-            )
+        cliente_form = ClienteForm(request.POST, prefix='cliente')
+        equipo_form  = EquipoForm(request.POST, prefix='equipo')
+        orden_form   = OrdenForm(request.POST, prefix='orden')
+
+        # Primero validamos cliente; si cliente inválido mostramos errores sin crear equipo/orden
+        if not cliente_form.is_valid():
+            return render(request, 'ordenes/crear_orden_integrada.html', {
+                'cliente_form': cliente_form, 'equipo_form': equipo_form, 'orden_form': orden_form
+            })
+
+        # Si el cliente está ok, validamos equipo y orden
+        if not (equipo_form.is_valid() and orden_form.is_valid()):
+            return render(request, 'ordenes/crear_orden_integrada.html', {
+                'cliente_form': cliente_form, 'equipo_form': equipo_form, 'orden_form': orden_form
+            })
+
+        # Guardado atómico: cliente → equipo (si no existe por IMEI) → orden
+        with transaction.atomic():
+            cliente = cliente_form.save()
             imei = equipo_form.cleaned_data.get('imei')
-            equipo = Equipo.objects.filter(imei=imei).first()
-            
+            equipo = None
+            if imei:
+                equipo = Equipo.objects.filter(imei=imei).first()
             if not equipo:
                 equipo = equipo_form.save()
-            
             orden = orden_form.save(commit=False)
             orden.cliente = cliente
             orden.equipo = equipo
             orden.save()
-            return redirect('crear_orden_integrada')
+        return redirect('vista_ordenes')  # ajusta nombre de vista
     else:
-        cliente_form = ClienteForm()
-        equipo_form = EquipoForm()
-        orden_form = OrdenForm()
+        cliente_form = ClienteForm(prefix='cliente')
+        equipo_form  = EquipoForm(prefix='equipo')
+        orden_form   = OrdenForm(prefix='orden')
+
     return render(request, 'ordenes/crear_orden_integrada.html', {
-        'cliente_form': cliente_form,
-        'equipo_form': equipo_form,
-        'orden_form': orden_form
+        'cliente_form': cliente_form, 'equipo_form': equipo_form, 'orden_form': orden_form
     })
 
-from django.http import JsonResponse
-from .models import Cliente, Equipo, Orden
-
-from .models import Orden
 
 def vista_ordenes_parcial(request):
     ordenes = Orden.objects.select_related('cliente', 'equipo').order_by('-fecha_ingreso')
@@ -73,17 +79,21 @@ def vista_ordenes_parcial(request):
 
 
 def buscar_clientes(request):
-    query = request.GET.get('q', '')
-    resultados = Cliente.objects.filter(nombre__icontains=query)[:10]
-    data = []
-    for cliente in resultados:
-        # Buscar equipos relacionados a través de órdenes
-        equipos = Equipo.objects.filter(orden__cliente=cliente).distinct()
-        equipos_data = [
-            f"{e.tipo} {e.marca} {e.modelo} (IMEI: {e.imei or 'N/A'} Serie: {e.serie or 'N/A'})"
-            for e in equipos
+    q = request.GET.get('q', '')
+    clientes = Cliente.objects.filter(
+        nombre__icontains=q
+    ) | Cliente.objects.filter(
+        telefono__icontains=q
+    )
+
+    resultados = []
+    for cliente in clientes.distinct():
+        equipos = cliente.equipo_set.values_list('tipo', 'marca', 'modelo', 'imei', 'serie')
+        equipos_texto = [
+            f"{tipo} {marca} {modelo} (IMEI: {imei} Serie: {serie})"
+            for tipo, marca, modelo, imei, serie in equipos
         ]
-        data.append({
+        resultados.append({
             'id': cliente.id,
             'nombre': cliente.nombre,
             'telefono': cliente.telefono,
@@ -92,13 +102,11 @@ def buscar_clientes(request):
             'localidad': cliente.localidad,
             'provincia': cliente.provincia,
             'comentarios': cliente.comentarios,
-            'equipos': equipos_data,
+            'equipos': equipos_texto,
         })
-    return JsonResponse({'clientes': data})
 
+    return JsonResponse({'clientes': resultados})
 
-from django.http import JsonResponse
-from .models import Equipo
 
 def buscar_equipo_por_imei(request):
     imei = request.GET.get('imei', '')
@@ -116,18 +124,14 @@ def buscar_equipo_por_imei(request):
         data = {'equipo': None}
     return JsonResponse(data)
 
-from django.shortcuts import render
 
 def panel_principal(request):
     return render(request, 'ordenes/panel_principal.html')
 
 
-from django.shortcuts import render
-from .models import Orden
-
 def vista_equipos(request):
     estado = request.GET.get('estado', '')
-    cliente = request.GET.get('cliente', '')
+    cliente_q = request.GET.get('cliente', '')
     marca = request.GET.get('marca', '')
     modelo = request.GET.get('modelo', '')
 
@@ -135,8 +139,8 @@ def vista_equipos(request):
 
     if estado:
         ordenes = ordenes.filter(estado__icontains=estado)
-    if cliente:
-        ordenes = ordenes.filter(cliente__nombre__icontains=cliente)
+    if cliente_q:
+        ordenes = ordenes.filter(cliente__nombre__icontains=cliente_q)
     if marca:
         ordenes = ordenes.filter(equipo__marca__icontains=marca)
     if modelo:
@@ -147,14 +151,15 @@ def vista_equipos(request):
     return render(request, 'ordenes/vista_equipos.html', {
         'ordenes': ordenes,
         'estado': estado,
-        'cliente': cliente,
+        'cliente': cliente_q,
         'marca': marca,
         'modelo': modelo,
     })
-    
+
+
 def vista_equipos_parcial(request):
     estado = request.GET.get('estado', '')
-    cliente = request.GET.get('cliente', '')
+    cliente_q = request.GET.get('cliente', '')
     marca = request.GET.get('marca', '')
     modelo = request.GET.get('modelo', '')
 
@@ -162,8 +167,8 @@ def vista_equipos_parcial(request):
 
     if estado:
         ordenes = ordenes.filter(estado__icontains=estado)
-    if cliente:
-        ordenes = ordenes.filter(cliente__nombre__icontains=cliente)
+    if cliente_q:
+        ordenes = ordenes.filter(cliente__nombre__icontains=cliente_q)
     if marca:
         ordenes = ordenes.filter(equipo__marca__icontains=marca)
     if modelo:
@@ -174,15 +179,11 @@ def vista_equipos_parcial(request):
     return render(request, 'ordenes/vista_equipos_parcial.html', {
         'ordenes': ordenes,
         'estado': estado,
-        'cliente': cliente,
+        'cliente': cliente_q,
         'marca': marca,
         'modelo': modelo,
     })
 
-
-
-from django.shortcuts import render
-from .models import Cliente
 
 def vista_clientes(request):
     nombre = request.GET.get('nombre', '')
@@ -214,7 +215,6 @@ def vista_clientes(request):
         'direccion': direccion,
     })
 
-from .models import Cliente
 
 def vista_clientes_parcial(request):
     clientes = Cliente.objects.all().order_by('nombre')
@@ -222,10 +222,6 @@ def vista_clientes_parcial(request):
         'clientes': clientes
     })
 
-
-from django.shortcuts import render
-from django.http import JsonResponse
-from .forms import ClienteForm
 
 def nuevo_cliente_modal(request):
     if request.method == 'POST':
@@ -246,11 +242,6 @@ def nuevo_cliente_modal(request):
         form = ClienteForm()
     return render(request, 'ordenes/modal_cliente.html', {'form': form})
 
-
-from django.shortcuts import get_object_or_404
-from django.http import JsonResponse
-from .models import Cliente
-from .forms import ClienteForm
 
 def editar_cliente_modal(request, cliente_id):
     cliente = get_object_or_404(Cliente, id=cliente_id)
@@ -273,12 +264,8 @@ def editar_cliente_modal(request, cliente_id):
     return render(request, 'ordenes/modal_editar_cliente.html', {'form': form, 'cliente': cliente})
 
 
-
-from django.shortcuts import render
-from .models import Orden
-
 def vista_historial(request):
-    estado = request.GET.get('estado')  # ← Captura el estado desde la URL
+    estado = request.GET.get('estado')
     if estado:
         ordenes = Orden.objects.filter(estado=estado)
     else:
@@ -286,10 +273,9 @@ def vista_historial(request):
 
     return render(request, 'ordenes/vista_historial.html', {
         'ordenes': ordenes,
-        'estado_seleccionado': estado  # ← Para que el template recuerde la opción elegida
+        'estado_seleccionado': estado
     })
 
-from .models import Orden
 
 def vista_historial_parcial(request):
     historial = Orden.objects.select_related('cliente', 'equipo').order_by('-fecha_ingreso')
@@ -297,12 +283,6 @@ def vista_historial_parcial(request):
         'historial': historial
     })
 
-
-
-from django.shortcuts import get_object_or_404, render
-from django.http import HttpResponse
-from .models import Orden
-from .forms import OrdenForm
 
 def detalle_orden_modal(request, orden_id):
     orden = get_object_or_404(Orden, id=orden_id)
@@ -324,9 +304,6 @@ def detalle_orden_modal(request, orden_id):
         'equipo': equipo,
     })
 
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse
-from .models import Cliente
 
 @csrf_exempt
 def eliminar_cliente(request, cliente_id):
@@ -336,6 +313,8 @@ def eliminar_cliente(request, cliente_id):
     return HttpResponse("Método no permitido", status=405)
 
 
-def panel_principal(request):
-    return render(request, 'ordenes/panel_principal.html')
 
+
+def vista_historial_parcial(request):
+    ordenes = Orden.objects.select_related('cliente', 'equipo').order_by('-fecha_ingreso')
+    return render(request, 'ordenes/vista_historial_parcial.html', {'ordenes': ordenes})

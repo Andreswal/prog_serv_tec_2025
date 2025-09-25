@@ -7,24 +7,69 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
   {% load static %}
+  <style>
+    body {
+      overflow: hidden;
+    }
+    #escritorio {
+      position: relative;
+      width: 100%;
+      height: 80vh;
+      background: #f8f9fa;
+      border: 1px solid #ccc;
+      overflow: hidden;
+    }
+    .ventana-flotante {
+      position: fixed;
+      background: white;
+      border: 2px solid #444;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      overflow: auto;
+      resize: both;
+    }
+    .barra-ventana {
+      background: #222;
+      color: white;
+      padding: 5px;
+      cursor: move;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .barra-ventana button {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body class="container mt-4">
   <h1 class="mb-4">Panel Principal del Técnico</h1>
 
   <div id="menu" class="mb-3">
-    <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('orden', '/ordenes/crear/')">🛠 Crear Orden</button>
+    <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('orden', '/ordenes/crear-integrada/')">🛠 Crear Orden</button>
     <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('equipos', '/equipos/parcial/')">📦 Equipos en Taller</button>
     <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('clientes', '/clientes/parcial/')">👤 Clientes</button>
     <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('historial', '/historial/parcial/')">📋 Historial</button>
   </div>
 
-  <div id="escritorio" style="position: relative; width: 100%; height: 80vh; background: #f8f9fa; border: 1px solid #ccc;">
+  <div id="escritorio">
     <!-- Aquí se insertan las ventanas flotantes -->
     <div id="barra-inferior" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; background: #ddd; border-top: 1px solid #aaa; display: flex; align-items: center; padding: 0 10px; gap: 10px;"></div>
-
   </div>
 
   <script src="{% static 'js/ventanas.js' %}"></script>
+
+  <script>
+    window.addEventListener('message', function(event) {
+      if (event.data.abrir === 'clientes') {
+        abrirVentana('clientes', '/clientes/parcial/');
+      }
+    });
+  </script>
+  
 </body>
 </html>
 

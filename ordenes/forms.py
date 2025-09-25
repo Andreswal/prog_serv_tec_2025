@@ -7,78 +7,81 @@ from .models import Cliente, Equipo, Orden
 class ClienteForm(forms.ModelForm):
     class Meta:
         model = Cliente
-        fields = ['nombre', 'telefono', 'email', 'direccion', 'localidad', 'provincia', 'comentarios']
+        fields = '__all__'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_id = 'cliente-form'
         self.helper.form_method = 'post'
+        self.helper.form_tag = False  # ← evita que crispy genere <form>
         self.helper.layout = Layout(
             Fieldset('Datos del Cliente',
                 'nombre', 'telefono', 'email',
                 'direccion', 'localidad', 'provincia',
                 'comentarios'
-            ),
-            ButtonHolder(
-                Submit('submit', 'Guardar Cliente', css_class='btn-primary')
             )
         )
 
 class EquipoForm(forms.ModelForm):
     class Meta:
         model = Equipo
-        fields = ['imei', 'serie', 'tipo', 'marca', 'modelo',
-                  'fecha_compra', 'garantia_compra',
-                  'accesorios', 'estado_general']
+        fields = '__all__'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_id = 'equipo-form'
         self.helper.form_method = 'post'
+        self.helper.form_tag = False
         self.helper.layout = Layout(
-            Fieldset('Detalles del Equipo',
-                'imei', 'serie',
+            Fieldset('Datos del Equipo',
                 'tipo', 'marca', 'modelo',
+                'imei', 'serie',
                 'fecha_compra', 'garantia_compra',
                 'accesorios', 'estado_general'
-            ),
-            ButtonHolder(
-                Submit('submit', 'Guardar Equipo', css_class='btn-primary')
             )
         )
+
     def clean_imei(self):
         imei = self.cleaned_data.get('imei')
-        if imei and Equipo.objects.filter(imei=imei).exists():
-            raise forms.ValidationError("Ya existe un equipo con este IMEI.")
+        if imei:
+            qs = Equipo.objects.filter(imei=imei)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError("Ya existe un equipo con este IMEI.")
         return imei
-    
+
     def clean_serie(self):
         serie = self.cleaned_data.get('serie')
-        if serie and Equipo.objects.filter(serie=serie).exists():
-            raise forms.ValidationError("Ya existe un equipo con este número de serie.")
+        if serie:
+            qs = Equipo.objects.filter(serie=serie)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError("Ya existe un equipo con este número de serie.")
         return serie
+
     
     
 
 class OrdenForm(forms.ModelForm):
     class Meta:
         model = Orden
-        fields = ['estado', 'falla', 'diagnostico', 'reparacion']  # cliente y equipo se asignan en la vista
+        fields = '__all__'
+        exclude = ['cliente', 'equipo']  # ← se asignan manualmente en la vista
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_id = 'orden-form'
         self.helper.form_method = 'post'
+        self.helper.form_tag = False
         self.helper.layout = Layout(
-            Fieldset('Nueva Orden',
-                'estado', 'falla',
-                'diagnostico', 'reparacion'
-            ),
-            ButtonHolder(
-                Submit('submit', 'Crear Orden', css_class='btn-success')
+            Fieldset('Datos de la Orden',
+                'estado', 'falla', 'diagnostico', 'reparacion',
+                'observaciones', 'fecha_ingreso', 'fecha_entrega'
             )
         )
 

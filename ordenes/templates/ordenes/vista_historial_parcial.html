@@ -1,0 +1,28 @@
+<h3>Historial de Órdenes</h3>
+<table class="table table-bordered table-sm table-hover">
+  <thead class="thead-light">
+    <tr>
+      <th>Cliente</th>
+      <th>Equipo</th>
+      <th>Falla</th>
+      <th>Estado</th>
+      <th>Fecha Ingreso</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for orden in ordenes %}
+    <tr>
+      <td>{{ orden.cliente.nombre }}</td>
+      <td>{{ orden.equipo.tipo }} {{ orden.equipo.marca }} {{ orden.equipo.modelo }}</td>
+      <td>{{ orden.falla }}</td>
+      <td>{{ orden.estado }}</td>
+      <td>{{ orden.fecha_ingreso|date:"d/m/Y" }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="5" class="text-center text-muted">No hay órdenes registradas.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+

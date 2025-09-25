@@ -10,7 +10,7 @@ function abrirVentana(id, url) {
   const ventana = document.createElement('div');
   ventana.id = 'ventana-' + id;
   ventana.className = 'ventana-flotante';
-  ventana.style.position = 'absolute';
+  ventana.style.position = 'fixed'; // ← corregido: antes era 'absolute'
   ventana.style.top = '60px';
   ventana.style.left = '60px';
   ventana.style.width = '800px';
@@ -39,10 +39,12 @@ function abrirVentana(id, url) {
   fetch(url)
     .then(res => res.text())
     .then(html => {
-      ventana.querySelector('.contenido-' + id).innerHTML = html;
+      const cont = ventana.querySelector('.contenido-' + id);
+      if (cont) cont.innerHTML = html;
     })
     .catch(() => {
-      ventana.querySelector('.contenido-' + id).innerHTML = "<div class='text-danger'>Error al cargar contenido.</div>";
+      const cont = ventana.querySelector('.contenido-' + id);
+      if (cont) cont.innerHTML = "<div class='text-danger'>Error al cargar contenido.</div>";
     });
 
   hacerMovible(ventana);
@@ -64,9 +66,22 @@ function abrirVentana(id, url) {
   };
 }
 
+
 function hacerMovible(ventana) {
   const barra = ventana.querySelector('.barra-ventana');
+  if (!barra) return;
   let offsetX = 0, offsetY = 0, moviendo = false;
+
+  const onMouseMove = function(e) {
+    if (moviendo) {
+      ventana.style.left = (e.clientX - offsetX) + 'px';
+      ventana.style.top = (e.clientY - offsetY) + 'px';
+    }
+  };
+
+  const onMouseUp = function() {
+    moviendo = false;
+  };
 
   barra.addEventListener('mousedown', function(e) {
     moviendo = true;
@@ -75,44 +90,48 @@ function hacerMovible(ventana) {
     ventana.style.zIndex = ++zIndexActual;
   });
 
-  document.addEventListener('mousemove', function(e) {
-    if (moviendo) {
-      ventana.style.left = (e.clientX - offsetX) + 'px';
-      ventana.style.top = (e.clientY - offsetY) + 'px';
-    }
-  });
-
-  document.addEventListener('mouseup', function() {
-    moviendo = false;
-  });
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
 }
 
 function alternarMinimizar(id) {
   const ventana = document.getElementById('ventana-' + id);
+  if (!ventana) return;
   const barraInferior = document.getElementById('barra-inferior');
+
+  if (!estadoVentanas[id]) {
+    estadoVentanas[id] = { maximizada: false, minimizada: false, original: {
+      width: ventana.style.width,
+      height: ventana.style.height,
+      top: ventana.style.top,
+      left: ventana.style.left,
+      resize: ventana.style.resize
+    }};
+  }
 
   if (!estadoVentanas[id].minimizada) {
     ventana.style.display = 'none';
     estadoVentanas[id].minimizada = true;
 
-    const botonRestaurar = document.createElement('button');
-    botonRestaurar.id = 'icono-' + id;
-    botonRestaurar.className = 'btn btn-sm btn-outline-dark';
-    botonRestaurar.innerText = id.toUpperCase();
-    botonRestaurar.onclick = () => {
-      ventana.style.display = 'block';
-      estadoVentanas[id].minimizada = false;
-      barraInferior.removeChild(botonRestaurar);
-      ventana.style.zIndex = ++zIndexActual;
-    };
-
-    barraInferior.appendChild(botonRestaurar);
+    if (barraInferior) {
+      const botonRestaurar = document.createElement('button');
+      botonRestaurar.id = 'icono-' + id;
+      botonRestaurar.className = 'btn btn-sm btn-outline-dark mr-1';
+      botonRestaurar.innerText = id.toUpperCase();
+      botonRestaurar.onclick = () => {
+        ventana.style.display = 'block';
+        estadoVentanas[id].minimizada = false;
+        if (barraInferior.contains(botonRestaurar)) barraInferior.removeChild(botonRestaurar);
+        ventana.style.zIndex = ++zIndexActual;
+      };
+      barraInferior.appendChild(botonRestaurar);
+    }
   } else {
     ventana.style.display = 'block';
     estadoVentanas[id].minimizada = false;
 
     const botonRestaurar = document.getElementById('icono-' + id);
-    if (botonRestaurar) {
+    if (botonRestaurar && barraInferior) {
       barraInferior.removeChild(botonRestaurar);
     }
     ventana.style.zIndex = ++zIndexActual;
@@ -122,14 +141,27 @@ function alternarMinimizar(id) {
 function maximizarVentana(id) {
   const ventana = document.getElementById('ventana-' + id);
   const escritorio = document.getElementById('escritorio');
+  if (!ventana || !escritorio) return;
+
+  if (!estadoVentanas[id]) {
+    estadoVentanas[id] = { maximizada: false, minimizada: false, original: {
+      width: ventana.style.width,
+      height: ventana.style.height,
+      top: ventana.style.top,
+      left: ventana.style.left,
+      resize: ventana.style.resize
+    }};
+  }
 
   if (!estadoVentanas[id].maximizada) {
+    // Guardar valores originales
     estadoVentanas[id].original.width = ventana.style.width;
     estadoVentanas[id].original.height = ventana.style.height;
     estadoVentanas[id].original.top = ventana.style.top;
     estadoVentanas[id].original.left = ventana.style.left;
     estadoVentanas[id].original.resize = ventana.style.resize;
 
+    // Maximizar
     ventana.style.top = '0';
     ventana.style.left = '0';
     ventana.style.width = escritorio.clientWidth + 'px';
@@ -137,10 +169,11 @@ function maximizarVentana(id) {
     ventana.style.resize = 'none';
     estadoVentanas[id].maximizada = true;
   } else {
+    // Restaurar valores originales
     ventana.style.top = estadoVentanas[id].original.top;
     ventana.style.left = estadoVentanas[id].original.left;
     ventana.style.width = estadoVentanas[id].original.width;
-    ventanaventana.style.height = (escritorio.clientHeight - 40) + 'px';
+    ventana.style.height = estadoVentanas[id].original.height;
     ventana.style.resize = estadoVentanas[id].original.resize;
     estadoVentanas[id].maximizada = false;
   }
