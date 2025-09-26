@@ -17,7 +17,9 @@ from .views import (
     nuevo_cliente_modal,
     editar_cliente_modal,
     eliminar_cliente,
+    
 )
+
 
 urlpatterns = [
     # Panel principal
@@ -52,6 +54,7 @@ urlpatterns = [
 
     #Historial parcial
     path('historial/parcial/', vista_historial_parcial, name='vista_historial_parcial'),
+
 
 
 ]

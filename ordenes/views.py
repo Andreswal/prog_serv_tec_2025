@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import Cliente, Equipo, Orden
 from .forms import ClienteForm, EquipoForm, OrdenForm
+from django.db.models import Q
 
 
 class OrdenCreateView(CreateView):
@@ -217,10 +218,12 @@ def vista_clientes(request):
 
 
 def vista_clientes_parcial(request):
-    clientes = Cliente.objects.all().order_by('nombre')
-    return render(request, 'ordenes/vista_clientes_parcial.html', {
-        'clientes': clientes
-    })
+    q = request.GET.get('q', '')
+    clientes = Cliente.objects.filter(
+        Q(nombre__icontains=q) | Q(telefono__icontains=q)
+    ) if q else Cliente.objects.all()
+    return render(request, 'ordenes/vista_clientes_parcial.html', {'clientes': clientes, 'q': q})
+
 
 
 def nuevo_cliente_modal(request):
@@ -318,3 +321,5 @@ def eliminar_cliente(request, cliente_id):
 def vista_historial_parcial(request):
     ordenes = Orden.objects.select_related('cliente', 'equipo').order_by('-fecha_ingreso')
     return render(request, 'ordenes/vista_historial_parcial.html', {'ordenes': ordenes})
+
+

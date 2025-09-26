@@ -21,7 +21,7 @@
         {{ cliente_form.nombre|as_crispy_field }}
       </div>
       <div class="col-md-2">
-        <button type="button" class="btn btn-info w-100" data-toggle="modal" data-target="#clienteModal">
+        <button type="button" class="btn btn-info w-100" onclick="window.parent.postMessage({ abrir: 'clientes' }, '*')">
           Buscar Cliente
         </button>
       </div>
@@ -57,13 +57,6 @@
       <button type="submit" class="btn btn-success">Guardar Orden</button>
     </div>
   </form>
-
-    <!-- Buscar Cliente -->
-    <button type="button" class="btn btn-info w-100" onclick="window.parent.postMessage({ abrir: 'clientes' }, '*')">
-      Buscar Cliente
-    </button>
-    
-    
 
   <!-- JS -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -106,7 +99,6 @@
       $('[name="cliente-localidad"]').val(localidad);
       $('[name="cliente-provincia"]').val(provincia);
       $('[name="cliente-comentarios"]').val(comentarios);
-      $('#clienteModal').modal('hide');
     }
 
     function autocompletarEquipo(texto) {
@@ -139,13 +131,6 @@
     });
   </script>
 
-<script>
-  $('#clienteModal').on('shown.bs.modal', function () {
-    $('#busquedaCliente').trigger('focus');
-  });
-</script>
-
-<script src="{% static 'js/ventanas.js' %}"></script>
-
+  <script src="{% static 'js/ventanas.js' %}"></script>
 </body>
 </html>
