@@ -1,44 +1,67 @@
 <h3>👤 Lista de Clientes</h3>
 
-<!-- Buscador por nombre o teléfono -->
-<form method="get" class="form-inline mb-3">
-  <input type="text" name="q" value="{{ q }}" id="busquedaCliente" class="form-control mr-2" placeholder="Buscar por nombre o teléfono">
-  <button type="submit" class="btn btn-primary">Buscar</button>
-</form>
+<form class="form-inline mb-3">
+      <input type="text" name="q" value="{% if q %}{{ q }}{% endif %}" id="busquedaClienteInput" class="form-control mr-2" placeholder="Buscar por nombre o teléfono">
+      <button type="button" id="btnBuscarCliente" class="btn btn-primary">Buscar</button> 
+  </form>
 
-<!-- Tabla de clientes -->
 <table id="tabla-clientes" class="table table-bordered table-hover table-sm">
-  <thead class="thead-dark">
-    <tr>
-      <th>Nombre</th>
-      <th>Teléfono</th>
-      <th>Email</th>
-      <th>Dirección</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for cliente in clientes %}
-    <tr>
-      <td>{{ cliente.nombre }}</td>
-      <td>{{ cliente.telefono }}</td>
-      <td>{{ cliente.email }}</td>
-      <td>{{ cliente.direccion }}</td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="4" class="text-center text-muted">No hay clientes registrados.</td>
-    </tr>
-    {% endfor %}
-  </tbody>
+    <thead class="thead-dark">
+        <tr>
+            <th>Nombre</th>
+            <th>Teléfono</th>
+            <th>Email</th>
+            <th>Dirección</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cliente in clientes %}
+        <tr>
+            <td>{{ cliente.nombre }}</td>
+            <td>{{ cliente.telefono }}</td>
+            <td>{{ cliente.email }}</td>
+            <td>{{ cliente.direccion }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4" class="text-center text-muted">No hay clientes registrados.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
 </table>
 
-<!-- Filtro en tiempo real sobre resultados -->
 <script>
-  $('#busquedaCliente').on('input', function() {
-    const filtro = $(this).val().toLowerCase();
-    $('#tabla-clientes tbody tr').each(function() {
-      const texto = $(this).text().toLowerCase();
-      $(this).toggle(texto.includes(filtro));
+    // ⚠️ ATENCIÓN: Si tu URL en urls.py usa un prefijo como 'ordenes/', 
+    // debes usar '/ordenes/clientes/parcial/' en lugar de '/clientes/parcial/'.
+
+    // 1. FILTRO DE SERVIDOR (Botón Buscar)
+    $('#btnBuscarCliente').on('click', function(e) { 
+        e.preventDefault(); 
+        
+        const query = $('#busquedaClienteInput').val(); 
+        
+        // 🚀 Ajustar esta URL si es necesario
+        // Opción A: URL absoluta a la raíz
+        const nuevaUrl = '/clientes/parcial/?q=' + encodeURIComponent(query); 
+        
+        // Opción B: Si tu aplicación se llama 'ordenes' y tiene ese prefijo:
+        // const nuevaUrl = '/ordenes/clientes/parcial/?q=' + encodeURIComponent(query); 
+
+        // Recarga el contenido de la ventana flotante
+        $('#contenido-ventana-clientes').load(nuevaUrl, function(response, status, xhr) {
+            if (status == "error") {
+                console.error("Error al recargar la búsqueda AJAX:", xhr.status, xhr.statusText, nuevaUrl); 
+            }
+        });
     });
-  });
+
+    // 2. FILTRO LOCAL EN TIEMPO REAL
+    $('#busquedaClienteInput').on('input', function() {
+        const filtro = $(this).val().toLowerCase();
+        
+        $('#tabla-clientes tbody tr').each(function() {
+            const texto = $(this).text().toLowerCase();
+            $(this).toggle(texto.includes(filtro));
+        });
+    });
 </script>
