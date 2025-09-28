@@ -2,18 +2,18 @@ let estadoVentanas = {};
 let zIndexActual = 1000; // z-index base para ventanas
 
 function abrirVentana(id, url) {
-    // 1. Evitar abrir si ya existe y ponerla al frente
+    // 1) Si ya existe, traerla al frente
     const ventanaExistente = document.getElementById('ventana-' + id);
     if (ventanaExistente) {
         ventanaExistente.style.zIndex = ++zIndexActual;
         return;
     }
 
+    // 2) Crear ventana y estilos
     const ventana = document.createElement('div');
     ventana.id = 'ventana-' + id;
     ventana.className = 'ventana-flotante';
-    
-    // Estilos de la ventana (sin cambios)
+
     ventana.style.position = 'fixed';
     ventana.style.top = '60px';
     ventana.style.left = '60px';
@@ -26,7 +26,7 @@ function abrirVentana(id, url) {
     ventana.style.overflow = 'auto';
     ventana.style.resize = 'both';
 
-    // 2. Definición del HTML con el ID de contenedor CORREGIDO
+    // 3) Barra y contenedor
     ventana.innerHTML = `
         <div class="barra-ventana" style="background: #222; color: white; padding: 5px; cursor: move;">
             <span>${id.toUpperCase()}</span>
@@ -36,29 +36,65 @@ function abrirVentana(id, url) {
                 <button onclick="document.getElementById('ventana-${id}').remove()">❌</button>
             </div>
         </div>
-        <div id="contenido-ventana-${id}" style="padding: 10px;">Cargando...</div> 
+        <div id="contenido-ventana-${id}" style="padding: 10px;">Cargando...</div>
     `;
 
-    document.getElementById('escritorio').appendChild(ventana);
+    const escritorio = document.getElementById('escritorio');
+    if (!escritorio) {
+        console.error("No existe el contenedor #escritorio en el DOM.");
+        return;
+    }
+    escritorio.appendChild(ventana);
 
-    // 3. Carga AJAX del contenido usando jQuery
+    // 4) Cargar contenido con jQuery
     const selectorContenido = `#contenido-ventana-${id}`;
-    
-    // Usamos $.load() para inyectar el HTML y que el script de búsqueda se active
-    $(selectorContenido).load(url, function(response, status, xhr) {
-        if (status == "error") {
-            const cont = ventana.querySelector(selectorContenido);
+    $(selectorContenido).load(url, function (response, status, xhr) {
+        const cont = document.getElementById(`contenido-ventana-${id}`);
+
+        if (status === "error") {
             if (cont) cont.innerHTML = `<div class='text-danger'>Error al cargar contenido (${xhr.status}).</div>`;
+            return;
+        }
+        if (!cont) return;
+
+        // Inicializar buscador si es la ventana de clientes
+        if (id === 'clientes' && typeof window.clientesInit === 'function') {
+            window.clientesInit(cont);
+        }
+
+        // 🔎 Detectar marcador de éxito en la ventana “nuevo-cliente”
+        const marker = cont.querySelector('#cliente-creado-marker');
+        if (marker && marker.dataset.accion === 'cliente_creado') {
+            console.log('Marcador detectado: cliente creado.');
+
+            // 1) Cerrar ventana de creación
+            const vNuevo = document.getElementById('ventana-nuevo-cliente');
+            if (vNuevo) vNuevo.remove();
+
+            // 2) Refrescar la ventana de clientes
+            const vClientesCont = document.getElementById('contenido-ventana-clientes');
+            if (vClientesCont) {
+                $(vClientesCont).load('/clientes/parcial/', function (resp2, status2, xhr2) {
+                    if (status2 === 'error') {
+                        vClientesCont.innerHTML = `<div class='text-danger'>Error al refrescar lista (${xhr2.status}).</div>`;
+                        return;
+                    }
+                    if (typeof window.clientesInit === 'function') {
+                        window.clientesInit(vClientesCont);
+                    }
+                    console.log('Lista de clientes refrescada tras crear nuevo.');
+                });
+            }
         }
     });
 
-    // 4. Hacer la ventana movible y z-index
+    // 5) Movible y z-index al frente
     hacerMovible(ventana);
-
     ventana.addEventListener('mousedown', () => {
         ventana.style.zIndex = ++zIndexActual;
     });
 
+    // 6) Guardar estado
     estadoVentanas[id] = {
         maximizada: false,
         minimizada: false,
@@ -184,3 +220,42 @@ function maximizarVentana(id) {
         estadoVentanas[id].maximizada = false;
     }
 }
+
+// Cerrar "nuevo-cliente" y refrescar la lista al recibir la señal
+window.addEventListener('message', function (e) {
+    if (!e.data || e.data.accion !== 'cliente_creado') return;
+
+    // 1) Cerrar ventana de nuevo cliente
+    const vNuevo = document.getElementById('ventana-nuevo-cliente');
+    if (vNuevo) {
+        vNuevo.remove();
+    }
+
+    // 2) Refrescar contenido de la ventana clientes
+    const vClientes = document.getElementById('ventana-clientes');
+    if (!vClientes) return;
+
+    const cont = vClientes.querySelector('.contenido-clientes');
+    if (!cont) return;
+
+    fetch('/clientes/parcial/')
+        .then(res => res.text())
+        .then(html => {
+            cont.innerHTML = html;
+
+            // Re-inicializar filtro y selección dentro de ese contenedor
+            if (typeof window.clientesInit === 'function') {
+                window.clientesInit(cont);
+            } else {
+                // Fallback con evento
+                document.dispatchEvent(
+                    new CustomEvent('clientes:rendered', {
+                        detail: { container: cont, id: 'clientes' }
+                    })
+                );
+            }
+
+            console.log('Lista de clientes refrescada tras crear nuevo.');
+        })
+        .catch(err => console.error('Error al refrescar lista de clientes:', err));
+});

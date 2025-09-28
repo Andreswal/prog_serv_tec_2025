@@ -1,5 +1,6 @@
 
 from django.urls import path
+from . import views
 from .views import (
     OrdenCreateView,
     crear_orden,
@@ -56,6 +57,8 @@ urlpatterns = [
     #Historial parcial
     path('historial/parcial/', vista_historial_parcial, name='vista_historial_parcial'),
 
+    # Crear Cliente nuevo
 
+    path('clientes/nuevo/', views.crear_cliente, name='crear_cliente'),
 
 ]

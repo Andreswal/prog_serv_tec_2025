@@ -3,7 +3,14 @@
 <form class="form-inline mb-3">
       <input type="text" name="q" value="{% if q %}{{ q }}{% endif %}" id="busquedaClienteInput" class="form-control mr-2" placeholder="Buscar por nombre o teléfono">
       <button type="button" id="btnBuscarCliente" class="btn btn-primary">Buscar</button> 
-  </form>
+    </form>
+
+<div class="mb-3">
+  <button class="btn btn-success" onclick="abrirVentana('nuevo-cliente', '/clientes/nuevo/')">
+    ➕ Nuevo Cliente
+  </button>
+</div>
+
 
 <table id="tabla-clientes" class="table table-bordered table-hover table-sm">
     <thead class="thead-dark">
@@ -65,3 +72,23 @@
         });
     });
 </script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.accion === 'cliente_creado') {
+      // Recargar la lista de clientes dentro de la ventana actual
+      fetch('/clientes/parcial/')
+        .then(res => res.text())
+        .then(html => {
+          const cont = document.querySelector('#tabla-clientes').parentElement;
+          cont.innerHTML = html;
+          // volver a inicializar buscador
+          if (window.clientesInit) window.clientesInit(cont);
+        });
+    }
+  });
+});
+</script>
+
+

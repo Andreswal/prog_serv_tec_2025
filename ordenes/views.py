@@ -329,3 +329,20 @@ def vista_historial_parcial(request):
     }
     # Asegúrate de tener una plantilla llamada 'vista_historial_parcial.html'
     return render(request, 'ordenes/vista_historial_parcial.html', context)
+
+
+
+def crear_cliente(request):
+    if request.method == 'POST':
+        form = ClienteForm(request.POST)
+        if form.is_valid():
+            cliente = form.save()
+            # 👉 Después de guardar, devolvemos la plantilla con el marcador
+            return render(request, 'ordenes/cliente_creado_cerrar.html', {'cliente': cliente})
+    else:
+        form = ClienteForm()
+
+    # 👉 Si es GET o el formulario no es válido, mostramos el formulario normal
+    return render(request, 'ordenes/crear_cliente.html', {'form': form})
+
+

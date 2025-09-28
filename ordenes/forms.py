@@ -85,3 +85,7 @@ class OrdenForm(forms.ModelForm):
             )
         )
 
+class ClienteForm(forms.ModelForm):
+    class Meta:
+        model = Cliente
+        fields = ['nombre', 'telefono', 'email', 'direccion', 'localidad', 'provincia', 'comentarios']
