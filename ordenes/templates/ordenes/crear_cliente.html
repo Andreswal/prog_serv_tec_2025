@@ -1,6 +1,84 @@
 <h3>➕ Nuevo Cliente</h3>
-<form method="post">
+
+<form id="form-nuevo-cliente" method="post" action="{% url 'clientes:nuevo' %}">
   {% csrf_token %}
   {{ form.as_p }}
   <button type="submit" class="btn btn-primary">Guardar</button>
 </form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.getElementById('form-nuevo-cliente');
+  if (!form) return;
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const btn = form.querySelector('button[type="submit"]');
+    const originalText = btn ? btn.innerText : null;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerText = 'Guardando...';
+    }
+
+    const data = new FormData(form);
+
+    try {
+      const res = await fetch(form.action, {
+        method: 'POST',
+        body: data,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest' // marca como AJAX para el servidor
+        }
+      });
+
+      // Intentamos parsear JSON
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const json = await res.json();
+        if (json.ok) {
+          // Emitir señal global que escucha ventanas.js
+          window.postMessage({ accion: 'cliente_creado', cliente_id: json.cliente_id }, window.location.origin);
+          // También añadimos un pequeño marcador por compatibilidad si se usara
+          const marker = document.createElement('div');
+          marker.id = 'cliente-creado-marker';
+          marker.dataset.accion = 'cliente_creado';
+          document.body.appendChild(marker);
+        } else {
+          // Mostrar errores recibidos (si tu view los envía)
+          console.error('Errores al guardar cliente:', json.errors || json);
+          // Aquí podés renderizar errores en el form si querés
+          alert('No se pudo guardar el cliente. Revisa los datos.');
+        }
+      } else {
+        // Si el servidor devuelve HTML (por ejemplo, la página con el formulario y errores)
+        const html = await res.text();
+
+        // Si la respuesta HTML contiene algún indicador de éxito que quieras detectar:
+        if (html.includes('cliente creado') || html.includes('Cliente creado')) {
+          window.postMessage({ accion: 'cliente_creado' }, window.location.origin);
+        } else {
+          // Reemplazar el form por el HTML devuelto (para mostrar errores)
+          const temp = document.createElement('div');
+          temp.innerHTML = html;
+          const nuevoForm = temp.querySelector('#form-nuevo-cliente') || temp.querySelector('form');
+          if (nuevoForm) {
+            form.replaceWith(nuevoForm);
+          } else {
+            // como fallback, reemplazamos todo el body del contenedor
+            document.body.innerHTML = html;
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error al enviar el formulario:', err);
+      alert('Error en la comunicación con el servidor. Reintenta.');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        if (originalText) btn.innerText = originalText;
+      }
+    }
+  });
+});
+</script>

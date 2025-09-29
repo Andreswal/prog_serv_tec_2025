@@ -1,3 +1,4 @@
+
 let estadoVentanas = {};
 let zIndexActual = 1000; // z-index base para ventanas
 
@@ -12,7 +13,7 @@ function abrirVentana(id, url) {
     // 2) Crear ventana y estilos
     const ventana = document.createElement('div');
     ventana.id = 'ventana-' + id;
-    ventana.className = 'ventana-flotante';
+    ventana.className = 'ventana-flotante'; // 🎯 Clave para el cierre fácil con .closest()
 
     ventana.style.position = 'fixed';
     ventana.style.top = '60px';
@@ -57,34 +58,60 @@ function abrirVentana(id, url) {
         }
         if (!cont) return;
 
-        // Inicializar buscador si es la ventana de clientes
+        // Inicializar buscador/tabla si es la ventana de clientes
         if (id === 'clientes' && typeof window.clientesInit === 'function') {
-            window.clientesInit(cont);
+            try {
+                window.clientesInit(cont);
+                console.log('ventanas.js: clientesInit ejecutado');
+            } catch (err) {
+                console.error('ventanas.js: error en clientesInit', err);
+            }
         }
 
-        // 🔎 Detectar marcador de éxito en la ventana “nuevo-cliente”
-        const marker = cont.querySelector('#cliente-creado-marker');
-        if (marker && marker.dataset.accion === 'cliente_creado') {
-            console.log('Marcador detectado: cliente creado.');
-
-            // 1) Cerrar ventana de creación
-            const vNuevo = document.getElementById('ventana-nuevo-cliente');
-            if (vNuevo) vNuevo.remove();
-
-            // 2) Refrescar la ventana de clientes
-            const vClientesCont = document.getElementById('contenido-ventana-clientes');
-            if (vClientesCont) {
-                $(vClientesCont).load('/clientes/parcial/', function (resp2, status2, xhr2) {
-                    if (status2 === 'error') {
-                        vClientesCont.innerHTML = `<div class='text-danger'>Error al refrescar lista (${xhr2.status}).</div>`;
-                        return;
+        // Si es la ventana de nuevo-cliente, forzar bind del submit AJAX
+        if (id === 'nuevo-cliente') {
+            const contNuevo = document.getElementById('contenido-ventana-nuevo-cliente');
+            if (contNuevo) {
+                if (typeof window.initFormNuevoCliente === 'function') {
+                    console.log('ventanas.js: llamando initFormNuevoCliente desde load');
+                    try {
+                        window.initFormNuevoCliente(contNuevo);
+                    } catch (err) {
+                        console.error('ventanas.js: initFormNuevoCliente lanzó error', err);
                     }
-                    if (typeof window.clientesInit === 'function') {
-                        window.clientesInit(vClientesCont);
-                    }
-                    console.log('Lista de clientes refrescada tras crear nuevo.');
-                });
+                } else {
+                    console.log('ventanas.js: initFormNuevoCliente no definida');
+                }
+            } else {
+                console.log('ventanas.js: contenedor contenido-ventana-nuevo-cliente no encontrado');
             }
+        }
+
+        // 🔎 Detección por marcador (compatibilidad adicional)
+        try {
+            const marker = cont.querySelector && cont.querySelector('#cliente-creado-marker');
+            if (marker && marker.dataset && marker.dataset.accion === 'cliente_creado') {
+                console.log('ventanas.js: marcador cliente creado detectado');
+                // cerrar ventana nuevo-cliente si existe
+                const vNuevo = document.getElementById('ventana-nuevo-cliente');
+                if (vNuevo) vNuevo.remove();
+                // refrescar lista clientes parcial si existe
+                const vClientesCont = document.getElementById('contenido-ventana-clientes');
+                if (vClientesCont) {
+                    $(vClientesCont).load('/clientes/parcial/', function (resp2, status2, xhr2) {
+                        if (status2 === 'error') {
+                            vClientesCont.innerHTML = `<div class='text-danger'>Error al refrescar lista (${xhr2.status}).</div>`;
+                            return;
+                        }
+                        if (typeof window.clientesInit === 'function') {
+                            window.clientesInit(vClientesCont);
+                        }
+                        console.log('ventanas.js: lista de clientes refrescada tras marcador.');
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('ventanas.js: error al buscar marcador', e);
         }
     });
 
@@ -221,41 +248,49 @@ function maximizarVentana(id) {
     }
 }
 
-// Cerrar "nuevo-cliente" y refrescar la lista al recibir la señal
+// Escuchar mensajes postMessage desde ventanas hijas o contenido inyectado
 window.addEventListener('message', function (e) {
-    if (!e.data || e.data.accion !== 'cliente_creado') return;
+    if (!e.data) return;
+    // Aceptamos mensajes desde el mismo origen o desde '*'
+    const accion = e.data.accion;
+    if (accion !== 'cliente_creado') return;
 
-    // 1) Cerrar ventana de nuevo cliente
+    console.log('ventanas.js: message recibido accion=cliente_creado', e.data);
+
+    // 1) Cerrar ventana de nuevo cliente si existe
     const vNuevo = document.getElementById('ventana-nuevo-cliente');
-    if (vNuevo) {
-        vNuevo.remove();
+    if (vNuevo) vNuevo.remove();
+
+    // 2) Refrescar contenido de la ventana clientes (si está abierta)
+    const vClientes = document.getElementById('ventana-clientes');
+    if (!vClientes) {
+        console.log('ventanas.js: ventana-clientes no abierta, nada que refrescar');
+        return;
     }
 
-    // 2) Refrescar contenido de la ventana clientes
-    const vClientes = document.getElementById('ventana-clientes');
-    if (!vClientes) return;
+    // Buscamos el contenedor de contenido dentro de la ventana clientes
+    const cont = document.getElementById('contenido-ventana-clientes') || vClientes.querySelector('.contenido-clientes') || vClientes.querySelector('#contenido-ventana-clientes');
+    if (!cont) {
+        console.log('ventanas.js: contenedor de clientes no encontrado');
+        return;
+    }
 
-    const cont = vClientes.querySelector('.contenido-clientes');
-    if (!cont) return;
-
+    // Recargar parcial via fetch y actualizar
     fetch('/clientes/parcial/')
         .then(res => res.text())
         .then(html => {
             cont.innerHTML = html;
-
-            // Re-inicializar filtro y selección dentro de ese contenedor
             if (typeof window.clientesInit === 'function') {
-                window.clientesInit(cont);
+                try {
+                    window.clientesInit(cont);
+                } catch (err) {
+                    console.error('ventanas.js: error al ejecutar clientesInit', err);
+                }
             } else {
-                // Fallback con evento
-                document.dispatchEvent(
-                    new CustomEvent('clientes:rendered', {
-                        detail: { container: cont, id: 'clientes' }
-                    })
-                );
+                // fallback: emitir evento para que alguien más inicialice
+                document.dispatchEvent(new CustomEvent('clientes:rendered', { detail: { container: cont, id: 'clientes' } }));
             }
-
-            console.log('Lista de clientes refrescada tras crear nuevo.');
+            console.log('ventanas.js: Lista de clientes refrescada tras crear nuevo.');
         })
-        .catch(err => console.error('Error al refrescar lista de clientes:', err));
+        .catch(err => console.error('ventanas.js: Error al refrescar lista de clientes:', err));
 });

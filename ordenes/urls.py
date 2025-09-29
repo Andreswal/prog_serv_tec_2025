@@ -20,6 +20,7 @@ from .views import (
     editar_cliente_modal,
     eliminar_cliente,
     
+    
 )
 
 
@@ -59,6 +60,13 @@ urlpatterns = [
 
     # Crear Cliente nuevo
 
-    path('clientes/nuevo/', views.crear_cliente, name='crear_cliente'),
+     # URL usada para ABRIR y GUARDAR el formulario
+    path('clientes/nuevo/', views.guardar_cliente_ajax, name='guardar_cliente'), 
+    
+    # 🎯 NUEVA URL para EDITAR/CARGAR el formulario de un cliente
+    path('clientes/editar/<int:cliente_id>/', views.editar_cliente_ajax, name='editar_cliente'),
+    
+    # 🎯 NUEVA URL para la eliminación masiva
+    path('clientes/eliminar/', views.eliminar_clientes_ajax, name='eliminar_clientes_ajax'),
 
 ]

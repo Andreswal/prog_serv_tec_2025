@@ -1,59 +1,63 @@
+
 <h3>👤 Lista de Clientes</h3>
 
-<form class="form-inline mb-3">
-      <input type="text" name="q" value="{% if q %}{{ q }}{% endif %}" id="busquedaClienteInput" class="form-control mr-2" placeholder="Buscar por nombre o teléfono">
-      <button type="button" id="btnBuscarCliente" class="btn btn-primary">Buscar</button> 
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <form class="form-inline">
+        <input type="text" name="q" value="{% if q %}{{ q }}{% endif %}" id="busquedaClienteInput" class="form-control mr-2" placeholder="Buscar por nombre o teléfono">
+        <button type="button" id="btnBuscarCliente" class="btn btn-primary">Actualizar</button>
     </form>
-
-<div class="mb-3">
-  <button class="btn btn-success" onclick="abrirVentana('nuevo-cliente', '/clientes/nuevo/')">
-    ➕ Nuevo Cliente
-  </button>
+    
+    <div>
+        <button type="button" id="btnEliminarSeleccionados" class="btn btn-danger mr-2" disabled>
+            Eliminar Seleccionados
+        </button>
+        <button type="button" class="btn btn-success" onclick="abrirVentana('form-cliente', '/clientes/nuevo/')">
+            + Nuevo Cliente
+        </button>
+    </div>
 </div>
 
-
 <table id="tabla-clientes" class="table table-bordered table-hover table-sm">
-    <thead class="thead-dark">
-        <tr>
-            <th>Nombre</th>
-            <th>Teléfono</th>
-            <th>Email</th>
-            <th>Dirección</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for cliente in clientes %}
-        <tr>
-            <td>{{ cliente.nombre }}</td>
-            <td>{{ cliente.telefono }}</td>
-            <td>{{ cliente.email }}</td>
-            <td>{{ cliente.direccion }}</td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="4" class="text-center text-muted">No hay clientes registrados.</td>
-        </tr>
-        {% endfor %}
-    </tbody>
+    <thead class="thead-dark">
+        <tr>
+            <th><input type="checkbox" id="seleccionarTodos"></th> 
+            <th>Nombre</th>
+            <th>Teléfono</th>
+            <th>Email</th>
+            <th>Dirección</th>
+            <th>Acción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cliente in clientes %}
+        <tr>
+            <td><input type="checkbox" name="cliente_ids" class="cliente-checkbox" value="{{ cliente.id }}"></td>
+            <td>{{ cliente.nombre }}</td>
+            <td>{{ cliente.telefono }}</td>
+            <td>{{ cliente.email }}</td>
+            <td>{{ cliente.direccion }}</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-info" 
+                        onclick="abrirVentana('cliente-{{ cliente.id }}', '{% url 'editar_cliente' cliente_id=cliente.id %}')">
+                    Editar
+                </button>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+             <td colspan="6" class="text-center text-muted">No hay clientes registrados.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
 </table>
 
 <script>
-    // ⚠️ ATENCIÓN: Si tu URL en urls.py usa un prefijo como 'ordenes/', 
-    // debes usar '/ordenes/clientes/parcial/' en lugar de '/clientes/parcial/'.
-
-    // 1. FILTRO DE SERVIDOR (Botón Buscar)
+    // Se mantiene tu lógica de búsqueda aquí.
     $('#btnBuscarCliente').on('click', function(e) { 
         e.preventDefault(); 
-        
         const query = $('#busquedaClienteInput').val(); 
-        
-        // 🚀 Ajustar esta URL si es necesario
-        // Opción A: URL absoluta a la raíz
         const nuevaUrl = '/clientes/parcial/?q=' + encodeURIComponent(query); 
         
-        // Opción B: Si tu aplicación se llama 'ordenes' y tiene ese prefijo:
-        // const nuevaUrl = '/ordenes/clientes/parcial/?q=' + encodeURIComponent(query); 
-
         // Recarga el contenido de la ventana flotante
         $('#contenido-ventana-clientes').load(nuevaUrl, function(response, status, xhr) {
             if (status == "error") {
@@ -62,7 +66,6 @@
         });
     });
 
-    // 2. FILTRO LOCAL EN TIEMPO REAL
     $('#busquedaClienteInput').on('input', function() {
         const filtro = $(this).val().toLowerCase();
         
@@ -73,22 +76,80 @@
     });
 </script>
 
+---
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  window.addEventListener('message', function(e) {
-    if (e.data && e.data.accion === 'cliente_creado') {
-      // Recargar la lista de clientes dentro de la ventana actual
-      fetch('/clientes/parcial/')
-        .then(res => res.text())
-        .then(html => {
-          const cont = document.querySelector('#tabla-clientes').parentElement;
-          cont.innerHTML = html;
-          // volver a inicializar buscador
-          if (window.clientesInit) window.clientesInit(cont);
+$(document).ready(function() {
+    const $seleccionarTodos = $('#seleccionarTodos');
+    const $checkboxes = $('.cliente-checkbox');
+    const $btnEliminar = $('#btnEliminarSeleccionados');
+
+    // --- Lógica de Control de Checkboxes ---
+    $seleccionarTodos.on('change', function() {
+        $checkboxes.prop('checked', this.checked);
+        $btnEliminar.prop('disabled', !this.checked);
+    });
+
+    $checkboxes.on('change', function() {
+        const checkedCount = $checkboxes.filter(':checked').length;
+        $btnEliminar.prop('disabled', checkedCount === 0);
+        
+        // Sincronizar 'Seleccionar Todos'
+        if (!this.checked) {
+            $seleccionarTodos.prop('checked', false);
+        } else if (checkedCount === $checkboxes.length) {
+            $seleccionarTodos.prop('checked', true);
+        }
+    });
+
+    // --- Lógica de Eliminación por AJAX ---
+    $btnEliminar.on('click', function() {
+        const clienteIds = $checkboxes.filter(':checked').map(function() {
+            return $(this).val();
+        }).get();
+
+        if (!confirm(`¿Estás seguro de que quieres eliminar ${clienteIds.length} cliente(s) seleccionado(s)?`)) {
+            return;
+        }
+
+        $.ajax({
+            url: '{% url "eliminar_clientes_ajax" %}', 
+            type: 'POST',
+            data: {
+                // Importante: la clave debe terminar en '[]' para enviar un array
+                'cliente_ids[]': clienteIds, 
+                'csrfmiddlewaretoken': '{{ csrf_token }}' 
+            },
+            success: function(response) {
+                if (response.success) {
+                    // Recarga la lista de clientes para mostrar los cambios
+                    $('#contenido-ventana-clientes').load('/clientes/parcial/', function() {
+                        alert(`Eliminación exitosa de ${response.count} cliente(s).`);
+                    });
+                }
+            },
+            error: function() {
+                alert("Ocurrió un error al intentar eliminar los clientes. Revisa la consola.");
+            }
         });
-    }
-  });
+    });
 });
 </script>
 
-
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.accion === 'cliente_creado') {
+      // Recargar la lista de clientes dentro de la ventana actual
+      fetch('/clientes/parcial/')
+        .then(res => res.text())
+        .then(html => {
+          const cont = document.querySelector('#tabla-clientes').parentElement;
+          cont.innerHTML = html;
+          // volver a inicializar buscador
+          if (window.clientesInit) window.clientesInit(cont);
+        });
+    }
+  });
+});
+</script>

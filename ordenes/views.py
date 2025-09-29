@@ -9,6 +9,7 @@ from django.db.models import Q # Importación necesaria (ya estaba, pero la mant
 
 from .models import Cliente, Equipo, Orden
 from .forms import ClienteForm, EquipoForm, OrdenForm
+from django.views.decorators.http import require_POST
 
 
 class OrdenCreateView(CreateView):
@@ -211,14 +212,22 @@ def vista_clientes(request):
 
 def vista_clientes_parcial(request):
     q = request.GET.get('q', '')
-    # Lógica de filtrado con Q-objects para el campo de búsqueda rápida 'q'
-    # Esta es la lógica que debe estar en concordancia con tu formulario HTML
+    
     if q:
+        # Lógica de filtrado EXISTENTE: Q-objects
         clientes = Cliente.objects.filter(
             Q(nombre__icontains=q) | Q(telefono__icontains=q)
         ).distinct()
+        
+        # 💥 Aplicar Ordenamiento ALFABÉTICO (A-Z) después de filtrar
+        clientes = clientes.order_by('nombre')
+        
     else:
+        # Si no hay búsqueda, trae todos los clientes
         clientes = Cliente.objects.all()
+        
+        # 💥 Aplicar Ordenamiento ALFABÉTICO (A-Z) a la lista completa
+        clientes = clientes.order_by('nombre')
         
     return render(request, 'ordenes/vista_clientes_parcial.html', {'clientes': clientes, 'q': q})
 
@@ -332,17 +341,62 @@ def vista_historial_parcial(request):
 
 
 
-def crear_cliente(request):
+# En tu archivo views.py
+import json
+from django.shortcuts import render
+from django.http import JsonResponse
+# from .forms import ClienteForm  <-- Asegúrate de que esto esté importado
+
+def guardar_cliente_ajax(request):
     if request.method == 'POST':
         form = ClienteForm(request.POST)
         if form.is_valid():
             cliente = form.save()
-            # 👉 Después de guardar, devolvemos la plantilla con el marcador
-            return render(request, 'ordenes/cliente_creado_cerrar.html', {'cliente': cliente})
+            
+            # 🎯 CLAVE: DEBE DEVOLVER ESTO EN EL JSON DE ÉXITO
+            return JsonResponse({'success': True, 'id': cliente.id})
+            
+        else:
+            # Si hay errores de validación
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+    
+    # 💥 ESTA ES LA FUNCIÓN QUE FALTA O ESTÁ MAL NOMBRADA 💥
+def editar_cliente_ajax(request, cliente_id):
+    # 1. Obtener el cliente existente
+    cliente = get_object_or_404(Cliente, pk=cliente_id)
+    
+    if request.method == 'POST':
+        # 2. Manejar la Edición (Guardar cambios)
+        form = ClienteForm(request.POST, instance=cliente)
+        if form.is_valid():
+            form.save()
+            return JsonResponse({'success': True, 'action': 'updated'})
+        else:
+            # Errores de validación
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+    
     else:
-        form = ClienteForm()
+        # 3. Petición GET: Cargar el formulario pre-rellenado para mostrar en la ventana
+        form = ClienteForm(instance=cliente)
+        
+        # Usamos la misma plantilla parcial para el formulario de edición
+        return render(request, 'ordenes/form_cliente_parcial.html', {
+            'form': form,
+            'cliente_id': cliente_id # Pasamos el ID para que la plantilla sepa que es modo edición
+        })
+        
+@require_POST
+def eliminar_clientes_ajax(request):
+    # Esta es la función que debe existir en views.py
+    cliente_ids = request.POST.getlist('cliente_ids[]') 
+    
+    if not cliente_ids:
+        return JsonResponse({'success': False, 'message': 'No se proporcionaron IDs.'}, status=400)
 
-    # 👉 Si es GET o el formulario no es válido, mostramos el formulario normal
-    return render(request, 'ordenes/crear_cliente.html', {'form': form})
-
-
+    # La eliminación
+    delete_count = Cliente.objects.filter(id__in=cliente_ids).delete()
+    
+    return JsonResponse({
+        'success': True,
+        'count': delete_count[0], # Número de clientes eliminados
+    })

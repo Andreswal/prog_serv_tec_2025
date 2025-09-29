@@ -1,0 +1,59 @@
+
+{% if cliente_id %}
+    <form id="formNuevoCliente" method="post" action="{% url 'editar_cliente' cliente_id=cliente_id %}">
+{% else %}
+    <form id="formNuevoCliente" method="post" action="{% url 'guardar_cliente' %}">
+{% endif %}
+    {% csrf_token %}
+    
+    {{ form.as_p }} 
+    
+    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+    
+    <button type="button" class="btn btn-secondary" onclick="$(this).closest('.ventana-flotante').remove()">Cancelar</button>
+</form>
+
+<div id="mensajes-cliente"></div>
+
+<script>
+    // Aseguramos que la función AJAX solo se ejecute una vez
+    $('#formNuevoCliente').on('submit', function(e) {
+        e.preventDefault(); 
+
+        const form = $(this);
+        const url = form.attr('action');
+
+        $.ajax({
+            type: 'POST',
+            url: url,
+            data: form.serialize(),
+            success: function(response) {
+                
+                // 1. Verificar si la respuesta es exitosa (success: true)
+                // Usamos 'response.success' que viene de tu JsonResponse en views.py
+                if (response && response.success) {
+                    
+                    // 2. CERRAR LA VENTANA (Usando la clase '.ventana-flotante' - la forma más segura)
+                    form.closest('.ventana-flotante').remove();
+                    
+                    // 3. Recargar la lista de clientes en segundo plano
+                    // Esto asegura que la tabla principal se actualice con los nuevos datos/ediciones
+                    $('#contenido-ventana-clientes').load('/clientes/parcial/', function() {
+                        // Si tienes una función de inicialización de filtros, debe ir aquí
+                        console.log('Lista de clientes actualizada tras guardar/editar.');
+                    });
+                    
+                } else {
+                    // Manejo de errores de validación (opcional, podrías mostrar form.errors aquí)
+                    console.warn("Error de validación del formulario:", response); 
+                    $('#mensajes-cliente').html('<div class="text-danger">Hubo un error de validación.</div>');
+                }
+            },
+            error: function(xhr, status, error) {
+                // Muestra un mensaje de error si la solicitud AJAX falla completamente (ej: error 500)
+                console.error("Error AJAX:", xhr.responseText);
+                $('#mensajes-cliente').html('<div class="text-danger">Error al comunicarse con el servidor.</div>');
+            }
+        });
+    });
+</script>
