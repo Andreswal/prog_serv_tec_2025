@@ -13,6 +13,9 @@ urlpatterns = [
     path('crear-integrada/', views.crear_orden_integrada, name='crear_orden_integrada'),
     path('orden/nueva/', views.OrdenCreateView.as_view(), name='orden_nueva'),
 
+    # 🎯 NUEVA URL para cargar el formulario integrado precargado
+    path('crear-integrada-precargada/', views.crear_orden_integrada_precargada, name='crear_orden_integrada_precargada'), 
+
     # Buscar cliente y equipo
     path('buscar-clientes/', views.buscar_clientes, name='buscar_clientes'),
     path('buscar-equipo/', views.buscar_equipo_por_imei, name='buscar_equipo_por_imei'),
@@ -47,4 +50,8 @@ urlpatterns = [
     
     # Eliminar un cliente específico
     path('clientes/eliminar/<int:cliente_id>/', views.eliminar_cliente, name='eliminar_cliente'),
+    
+    # 🎯 URL para cargar el formulario de orden precargado con un cliente
+    path('ordenes/nueva/', views.crear_orden_view, name='crear_orden_view'), 
+    
 ]

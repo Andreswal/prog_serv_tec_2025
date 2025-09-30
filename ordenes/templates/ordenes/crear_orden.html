@@ -6,9 +6,29 @@
 </head>
 <body>
     <h1>Registrar Orden</h1>
+    
+    {% if cliente_seleccionado %}
+        <p class="alert alert-info">
+            Cliente precargado: <strong>{{ cliente_seleccionado.nombre }}</strong>
+        </p>
+    {% endif %}
+
     <form method="post">
         {% csrf_token %}
-        {{ form|crispy }}
+
+        {% if cliente_seleccionado %}
+            {% for field in form %}
+                {% if field.name == 'cliente' %}
+                    {{ field.as_hidden }}
+                {% else %}
+                    {{ field|crispy }}
+                {% endif %}
+            {% endfor %}
+            
+        {% else %}
+            {{ form|crispy }}
+        {% endif %}
+
         <button type="submit">Guardar</button>
     </form>
 </body>

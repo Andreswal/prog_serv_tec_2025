@@ -67,6 +67,87 @@ def crear_orden_integrada(request):
     return render(request, 'ordenes/crear_orden_integrada.html', {
         'cliente_form': cliente_form, 'equipo_form': equipo_form, 'orden_form': orden_form
     })
+    
+    
+# En ordenes/views.py, añade esta nueva función
+def crear_orden_integrada_precargada(request):
+    """
+    Vista de la orden integrada que precarga un cliente ID pasado por GET.
+    """
+    cliente = None
+    cliente_id = request.GET.get('cliente_id')
+    
+    # 1. Lógica de Precarga (si viene de la lista de clientes)
+    if cliente_id:
+        try:
+            cliente = Cliente.objects.get(pk=cliente_id)
+        except Cliente.DoesNotExist:
+            pass 
+
+    # 2. Manejo POST (Guarda los 3 formularios)
+    if request.method == 'POST':
+        # Para el POST, si el cliente fue precargado, su instancia se usa para 
+        # actualizarlo o asegurar que el form de cliente no falle si no tiene datos.
+        instance_cliente = cliente if cliente else None
+        
+        # OJO: Si estás usando el mismo formulario, asegúrate que en el template
+        # se maneje bien la instancia o la data inicial.
+        cliente_form = ClienteForm(request.POST, prefix='cliente', instance=instance_cliente)
+        equipo_form  = EquipoForm(request.POST, prefix='equipo')
+        orden_form   = OrdenForm(request.POST, prefix='orden')
+
+        # Si el cliente ya está cargado, no validamos el formulario de cliente
+        is_cliente_valid = cliente_form.is_valid() if not cliente else True
+        
+        if not (is_cliente_valid and equipo_form.is_valid() and orden_form.is_valid()):
+             # Si falla la validación, re-renderiza con los errores
+             return render(request, 'ordenes/crear_orden_integrada.html', {
+                 'cliente_form': cliente_form, 
+                 'equipo_form': equipo_form, 
+                 'orden_form': orden_form,
+                 'cliente_seleccionado': cliente # Reenvía el cliente para el mensaje de precarga
+             })
+
+        with transaction.atomic():
+            # Si el cliente es nuevo, lo guarda. Si ya existía, usamos la instancia cargada.
+            if cliente: # Ya cargado desde GET
+                pass # No se guarda/actualiza el ClienteForm si está precargado
+            else: # No precargado, debe venir data en el ClienteForm
+                cliente = cliente_form.save()
+            
+            imei = equipo_form.cleaned_data.get('imei')
+            equipo = Equipo.objects.filter(imei=imei).first() if imei else None
+            
+            if not equipo:
+                equipo = equipo_form.save() 
+            
+            orden = orden_form.save(commit=False)
+            orden.cliente = cliente # Asigna el cliente (ya sea cargado o nuevo)
+            orden.equipo = equipo
+            orden.save()
+            
+        return redirect('vista_ordenes') 
+    
+    # 3. Manejo GET (Mostrar formularios)
+    else:
+        # Inicializa los formularios
+        initial_cliente = {'id': cliente.id} if cliente else {} 
+        
+        # Cliente Form: Lo inicializamos con los datos del cliente si existe
+        cliente_form = ClienteForm(prefix='cliente', initial=initial_cliente, instance=cliente)
+        
+        # Orden Form: Aquí precargamos el campo Cliente con el ID
+        initial_orden = {'cliente': cliente.id} if cliente else {}
+        orden_form  = OrdenForm(prefix='orden', initial=initial_orden)
+        
+        equipo_form  = EquipoForm(prefix='equipo')
+
+    return render(request, 'ordenes/crear_orden_integrada.html', {
+        'cliente_form': cliente_form, 
+        'equipo_form': equipo_form, 
+        'orden_form': orden_form,
+        'cliente_seleccionado': cliente # Pasa el objeto cliente al template
+    })
 
 
 def vista_ordenes_parcial(request):
@@ -79,30 +160,43 @@ def vista_ordenes_parcial(request):
 def crear_orden_view(request):
     """
     Vista para crear una nueva orden, permitiendo precargar el cliente ID desde GET.
-    Esta es la vista que usa la acción del botón 'Nueva Orden' de la lista de clientes.
+    Si recibe POST, intenta guardar. Si falla, devuelve el formulario con errores.
     """
     cliente = None
-    if request.method == 'GET':
-        cliente_id = request.GET.get('cliente_id')
-        if cliente_id:
-            try:
-                # Usamos select_related por si quieres acceder a más datos del cliente
-                cliente = Cliente.objects.get(pk=cliente_id) 
-            except Cliente.DoesNotExist:
-                pass # Si el ID es inválido, cliente sigue siendo None
+    form = None
+    
+    # 1. Manejo de Cliente ID (Se ejecuta siempre al inicio, especialmente en GET)
+    cliente_id = request.GET.get('cliente_id')
+    if cliente_id:
+        try:
+            # Si el cliente existe, lo cargamos
+            cliente = Cliente.objects.get(pk=cliente_id) 
+        except Cliente.DoesNotExist:
+            pass 
 
+    # 2. Manejo de Petición POST (Guardado)
     if request.method == 'POST':
-        # Manejo POST (guardado real del formulario)
         form = OrdenForm(request.POST)
         if form.is_valid():
-            orden = form.save()
-            # Asume que quieres redirigir al detalle o a la lista de órdenes
+            orden = form.save(commit=False)
+            
+            # Si el formulario no traía el cliente (ej. hidden field) y lo precargamos, 
+            # aseguramos que se asigne a la orden
+            if not orden.cliente and cliente:
+                orden.cliente = cliente
+                
+            orden.save()
+            
+            # Respuesta JSON para AJAX si la operación fue exitosa
             return JsonResponse({'success': True, 'orden_id': orden.id}) 
-        else:
-            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+            
+        # Si NO es válido, el flujo continúa hacia el paso 3 para re-renderizar
+        # el formulario con los errores.
+
+    # 3. Manejo de Petición GET o POST Inválido (Mostrar/Re-mostrar formulario)
     
-    # Manejo GET (mostrar el formulario)
-    else:
+    # Si 'form' es None, significa que es una petición GET.
+    if form is None:
         initial_data = {}
         if cliente:
             # Precarga el campo 'cliente' con el ID
@@ -110,11 +204,13 @@ def crear_orden_view(request):
             
         form = OrdenForm(initial=initial_data)
 
-    return render(request, 'ordenes/form_orden_parcial.html', { # Asume este es tu template de formulario
+    # El render se ejecuta si es GET, o si es POST fallido.
+    return render(request, 'ordenes/crear_orden.html', { 
         'form': form,
-        'cliente_seleccionado': cliente # Para mostrar el nombre del cliente en el formulario
+        'cliente_seleccionado': cliente 
     })
-
+    
+    
 # ===============================================
 # BUSQUEDA Y PANELES
 # ===============================================

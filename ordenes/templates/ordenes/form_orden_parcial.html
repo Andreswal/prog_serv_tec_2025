@@ -1,0 +1,38 @@
+<div class="modal-header">
+    <h5 class="modal-title">
+        Nueva Orden de Servicio 
+        {% if cliente_seleccionado %}
+            - Cliente: {{ cliente_seleccionado.nombre }}
+        {% endif %}
+    </h5>
+    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+    </button>
+</div>
+
+<div class="modal-body">
+    <form method="post" action="{% url 'crear_orden_view' %}?cliente_id={{ cliente_seleccionado.id }}" id="form-nueva-orden">
+        {% csrf_token %}
+        
+        {% if cliente_seleccionado %}
+            <p>
+                <label>Cliente:</label>
+                <input type="text" class="form-control" value="{{ cliente_seleccionado.nombre }}" disabled>
+                {{ form.cliente.as_hidden }} 
+            </p>
+            
+            {% else %}
+            {{ form.as_p }}
+        {% endif %}
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+            <button type="submit" class="btn btn-primary">Guardar Orden</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// Puedes añadir aquí la lógica para enviar este formulario por AJAX
+// para que el modal se cierre al guardar con éxito, similar a lo que hiciste con el cliente.
+</script>
