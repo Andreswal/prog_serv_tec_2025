@@ -1,16 +1,20 @@
-# ordenes/views.py (bloque revisado)
+# En ordenes/views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.db import transaction
 from django.http import JsonResponse, HttpResponse
 from django.views.generic.edit import CreateView
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Q # Importación necesaria (ya estaba, pero la mantengo aquí)
-
-from .models import Cliente, Equipo, Orden
-from .forms import ClienteForm, EquipoForm, OrdenForm
+from django.db.models import Q # Importación necesaria
 from django.views.decorators.http import require_POST
+import json 
 
+from .models import Cliente, Equipo, Orden # Asegúrate de que Cliente esté aquí
+from .forms import ClienteForm, EquipoForm, OrdenForm
+
+# ===============================================
+# VISTAS DE ORDENES
+# ===============================================
 
 class OrdenCreateView(CreateView):
     model = Orden
@@ -18,9 +22,7 @@ class OrdenCreateView(CreateView):
     template_name = 'ordenes/orden_form.html'
     success_url = reverse_lazy('orden_nueva') 
 
-
 def crear_orden(request):
-    """Vista simple usando solo OrdenForm (si la usás en alguna parte)."""
     if request.method == 'POST':
         form = OrdenForm(request.POST)
         if form.is_valid():
@@ -37,34 +39,25 @@ def crear_orden_integrada(request):
         equipo_form  = EquipoForm(request.POST, prefix='equipo')
         orden_form   = OrdenForm(request.POST, prefix='orden')
 
-        # Si alguna validación falla, renderiza el formulario con los errores
         if not (cliente_form.is_valid() and equipo_form.is_valid() and orden_form.is_valid()):
              return render(request, 'ordenes/crear_orden_integrada.html', {
-                'cliente_form': cliente_form, 'equipo_form': equipo_form, 'orden_form': orden_form
-            })
+                 'cliente_form': cliente_form, 'equipo_form': equipo_form, 'orden_form': orden_form
+             })
 
-        # Guardado atómico: cliente → equipo (si no existe por IMEI) → orden
         with transaction.atomic():
-            # 1. Guardar o actualizar cliente
-            cliente = cliente_form.save() # Si tiene un ID, se actualiza; si no, se crea.
-            
-            # 2. Manejar Equipo (crear o reutilizar por IMEI)
+            cliente = cliente_form.save()
             imei = equipo_form.cleaned_data.get('imei')
-            equipo = None
-            if imei:
-                equipo = Equipo.objects.filter(imei=imei).first()
+            equipo = Equipo.objects.filter(imei=imei).first() if imei else None
             
-            # Si no encontramos equipo por IMEI, o si IMEI está vacío, creamos uno nuevo.
             if not equipo:
                 equipo = equipo_form.save() 
             
-            # 3. Guardar Orden
             orden = orden_form.save(commit=False)
             orden.cliente = cliente
             orden.equipo = equipo
             orden.save()
             
-        return redirect('vista_ordenes') # Ajusta nombre de vista si es necesario
+        return redirect('vista_ordenes') # Asume que tienes una URL llamada 'vista_ordenes'
     
     else:
         cliente_form = ClienteForm(prefix='cliente')
@@ -77,27 +70,65 @@ def crear_orden_integrada(request):
 
 
 def vista_ordenes_parcial(request):
-    # Sin filtros, solo lista
     ordenes = Orden.objects.select_related('cliente', 'equipo').order_by('-fecha_ingreso')
     return render(request, 'ordenes/vista_ordenes_parcial.html', {
         'ordenes': ordenes
     })
+    
+    
+def crear_orden_view(request):
+    """
+    Vista para crear una nueva orden, permitiendo precargar el cliente ID desde GET.
+    Esta es la vista que usa la acción del botón 'Nueva Orden' de la lista de clientes.
+    """
+    cliente = None
+    if request.method == 'GET':
+        cliente_id = request.GET.get('cliente_id')
+        if cliente_id:
+            try:
+                # Usamos select_related por si quieres acceder a más datos del cliente
+                cliente = Cliente.objects.get(pk=cliente_id) 
+            except Cliente.DoesNotExist:
+                pass # Si el ID es inválido, cliente sigue siendo None
 
+    if request.method == 'POST':
+        # Manejo POST (guardado real del formulario)
+        form = OrdenForm(request.POST)
+        if form.is_valid():
+            orden = form.save()
+            # Asume que quieres redirigir al detalle o a la lista de órdenes
+            return JsonResponse({'success': True, 'orden_id': orden.id}) 
+        else:
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+    
+    # Manejo GET (mostrar el formulario)
+    else:
+        initial_data = {}
+        if cliente:
+            # Precarga el campo 'cliente' con el ID
+            initial_data['cliente'] = cliente.id
+            
+        form = OrdenForm(initial=initial_data)
+
+    return render(request, 'ordenes/form_orden_parcial.html', { # Asume este es tu template de formulario
+        'form': form,
+        'cliente_seleccionado': cliente # Para mostrar el nombre del cliente en el formulario
+    })
+
+# ===============================================
+# BUSQUEDA Y PANELES
+# ===============================================
 
 def buscar_clientes(request):
     q = request.GET.get('q', '')
-    
-    # 1. Usar Q objects y el operador | (OR) de forma limpia
-    # NOTA: Tu lógica ya estaba correcta, solo la refactorizo para ser más concisa.
     clientes = Cliente.objects.filter(
         Q(nombre__icontains=q) | Q(telefono__icontains=q)
     ).distinct()
 
     resultados = []
     for cliente in clientes:
-        # Optimización: solo trae los campos necesarios
+        # Nota: La relación de Equipo a Cliente debe llamarse 'equipo_set'
         equipos = cliente.equipo_set.values_list('tipo', 'marca', 'modelo', 'imei', 'serie')
-        
         equipos_texto = [
             f"{tipo} {marca} {modelo} (IMEI: {imei} Serie: {serie})"
             for tipo, marca, modelo, imei, serie in equipos
@@ -137,9 +168,11 @@ def buscar_equipo_por_imei(request):
 def panel_principal(request):
     return render(request, 'ordenes/panel_principal.html')
 
+# ===============================================
+# VISTAS AUXILIARES Y DE LISTADOS
+# ===============================================
 
 def _aplicar_filtros_ordenes(request, queryset=None):
-    """Función auxiliar para aplicar filtros comunes a las OTs. (Refactorización)"""
     if queryset is None:
         queryset = Orden.objects.select_related('equipo', 'cliente')
         
@@ -148,23 +181,15 @@ def _aplicar_filtros_ordenes(request, queryset=None):
     marca = request.GET.get('marca', '')
     modelo = request.GET.get('modelo', '')
     
-    if estado:
-        queryset = queryset.filter(estado__icontains=estado)
-    if cliente_q:
-        queryset = queryset.filter(cliente__nombre__icontains=cliente_q)
-    if marca:
-        queryset = queryset.filter(equipo__marca__icontains=marca)
-    if modelo:
-        queryset = queryset.filter(equipo__modelo__icontains=modelo)
+    if estado: queryset = queryset.filter(estado__icontains=estado)
+    if cliente_q: queryset = queryset.filter(cliente__nombre__icontains=cliente_q)
+    if marca: queryset = queryset.filter(equipo__marca__icontains=marca)
+    if modelo: queryset = queryset.filter(equipo__modelo__icontains=modelo)
         
     return queryset.order_by('-fecha_ingreso'), {
-        'estado': estado,
-        'cliente': cliente_q,
-        'marca': marca,
-        'modelo': modelo,
+        'estado': estado, 'cliente': cliente_q, 'marca': marca, 'modelo': modelo,
     }
 
-# Vistas de equipos y parcial refactorizadas para usar la función auxiliar
 def vista_equipos(request):
     ordenes, filtros = _aplicar_filtros_ordenes(request)
     return render(request, 'ordenes/vista_equipos.html', {'ordenes': ordenes, **filtros})
@@ -173,8 +198,6 @@ def vista_equipos(request):
 def vista_equipos_parcial(request):
     ordenes, filtros = _aplicar_filtros_ordenes(request)
     return render(request, 'ordenes/vista_equipos_parcial.html', {'ordenes': ordenes, **filtros})
-# Fin de la refactorización
-
 
 def vista_clientes(request):
     nombre = request.GET.get('nombre', '')
@@ -185,28 +208,17 @@ def vista_clientes(request):
 
     clientes = Cliente.objects.all()
 
-    # Filtros de cliente (ya estaban correctos)
-    if nombre:
-        clientes = clientes.filter(nombre__icontains=nombre)
-    if telefono:
-        clientes = clientes.filter(telefono__icontains=telefono)
-    if email:
-        clientes = clientes.filter(email__icontains=email)
+    if nombre: clientes = clientes.filter(nombre__icontains=nombre)
+    if telefono: clientes = clientes.filter(telefono__icontains=telefono)
+    if email: clientes = clientes.filter(email__icontains=email)
 
-    # Lógica de ordenamiento
-    if direccion == 'desc':
-        ordenar_por = f'-{ordenar_por}'
-
+    if direccion == 'desc': ordenar_por = f'-{ordenar_por}'
     clientes = clientes.order_by(ordenar_por)
 
     return render(request, 'ordenes/vista_clientes.html', {
         'clientes': clientes,
-        # Se envían los valores de filtro de vuelta al template para mostrarlos en los inputs
-        'nombre': nombre,
-        'telefono': telefono,
-        'email': email,
-        'ordenar_por': request.GET.get('ordenar_por', ''),
-        'direccion': direccion,
+        'nombre': nombre, 'telefono': telefono, 'email': email,
+        'ordenar_por': request.GET.get('ordenar_por', ''), 'direccion': direccion,
     })
 
 
@@ -214,78 +226,24 @@ def vista_clientes_parcial(request):
     q = request.GET.get('q', '')
     
     if q:
-        # Lógica de filtrado EXISTENTE: Q-objects
         clientes = Cliente.objects.filter(
             Q(nombre__icontains=q) | Q(telefono__icontains=q)
         ).distinct()
-        
-        # 💥 Aplicar Ordenamiento ALFABÉTICO (A-Z) después de filtrar
         clientes = clientes.order_by('nombre')
-        
     else:
-        # Si no hay búsqueda, trae todos los clientes
         clientes = Cliente.objects.all()
-        
-        # 💥 Aplicar Ordenamiento ALFABÉTICO (A-Z) a la lista completa
         clientes = clientes.order_by('nombre')
         
     return render(request, 'ordenes/vista_clientes_parcial.html', {'clientes': clientes, 'q': q})
 
 
-
-def nuevo_cliente_modal(request):
-    if request.method == 'POST':
-        form = ClienteForm(request.POST)
-        if form.is_valid():
-            cliente = form.save()
-            # Retorno de datos JSON (ya estaba correcto)
-            return JsonResponse({
-                'id': cliente.id,
-                'nombre': cliente.nombre,
-                'telefono': cliente.telefono,
-                'email': cliente.email,
-                'direccion': cliente.direccion,
-                'localidad': cliente.localidad,
-                'provincia': cliente.provincia,
-                'comentarios': cliente.comentarios,
-            })
-    else:
-        form = ClienteForm()
-    return render(request, 'ordenes/modal_cliente.html', {'form': form})
-
-
-def editar_cliente_modal(request, cliente_id):
-    cliente = get_object_or_404(Cliente, id=cliente_id)
-    if request.method == 'POST':
-        form = ClienteForm(request.POST, instance=cliente)
-        if form.is_valid():
-            cliente = form.save()
-            # Retorno de datos JSON (ya estaba correcto)
-            return JsonResponse({
-                'id': cliente.id,
-                'nombre': cliente.nombre,
-                'telefono': cliente.telefono,
-                'email': cliente.email,
-                'direccion': cliente.direccion,
-                'localidad': cliente.localidad,
-                'provincia': cliente.provincia,
-                'comentarios': cliente.comentarios,
-            })
-    else:
-        form = ClienteForm(instance=cliente)
-    return render(request, 'ordenes/modal_editar_cliente.html', {'form': form, 'cliente': cliente})
-
-
 def vista_historial(request):
-    # La vista original usaba .filter(estado=estado), sin icontains, lo cual está bien si el estado es exacto
+    """Vista principal de historial. Reinsertada para solucionar el ImportError en urls.py."""
     estado = request.GET.get('estado')
-    ordenes = Orden.objects.select_related('cliente', 'equipo') # Añadido select_related para optimizar
+    ordenes = Orden.objects.select_related('cliente', 'equipo') 
     
     if estado:
         ordenes = ordenes.filter(estado=estado)
-    else:
-        # Aquí puedes decidir si quieres listar todo o limitar (como ya tenías)
-        ordenes = ordenes.all()
         
     ordenes = ordenes.order_by('-fecha_ingreso')[:50] # Límite para evitar cargas muy pesadas
     
@@ -295,8 +253,13 @@ def vista_historial(request):
     })
 
 
-# Eliminada la segunda definición de vista_historial_parcial
-# El contenido se integra en la función general de historial si se usa para filtrar
+def vista_historial_parcial(request):
+    # Puedes usar _aplicar_filtros_ordenes aquí si lo deseas. 
+    # Por ahora, solo devuelve un contexto vacío si no hay lógica de filtrado compleja.
+    context = {
+        'historial_items': Orden.objects.select_related('cliente', 'equipo').order_by('-fecha_ingreso')[:20]
+    }
+    return render(request, 'ordenes/vista_historial_parcial.html', context)
 
 
 def detalle_orden_modal(request, orden_id):
@@ -309,6 +272,7 @@ def detalle_orden_modal(request, orden_id):
         if form.is_valid():
             form.save()
             return HttpResponse("Guardado")
+        # Aquí faltaría manejar el error de validación
     else:
         form = OrdenForm(instance=orden)
 
@@ -319,84 +283,96 @@ def detalle_orden_modal(request, orden_id):
         'equipo': equipo,
     })
 
-
-@csrf_exempt
-def eliminar_cliente(request, cliente_id):
-    if request.method == 'POST':
-        Cliente.objects.filter(id=cliente_id).delete()
-        return HttpResponse("Eliminado")
-    return HttpResponse("Método no permitido", status=405)
-
-
-# En ordenes/views.py
-# ... tus otras funciones ...
-
-def vista_historial_parcial(request):
-    # Aquí iría tu lógica para obtener el historial filtrado
-    context = {
-        'historial_items': [] # O Cliente.objects.none() por defecto
-    }
-    # Asegúrate de tener una plantilla llamada 'vista_historial_parcial.html'
-    return render(request, 'ordenes/vista_historial_parcial.html', context)
-
-
-
-# En tu archivo views.py
-import json
-from django.shortcuts import render
-from django.http import JsonResponse
-# from .forms import ClienteForm  <-- Asegúrate de que esto esté importado
+# ===============================================
+# VISTAS AJAX DE CLIENTES
+# ===============================================
 
 def guardar_cliente_ajax(request):
+    """Vista para CREAR un nuevo cliente."""
     if request.method == 'POST':
         form = ClienteForm(request.POST)
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        
         if form.is_valid():
-            cliente = form.save()
-            
-            # 🎯 CLAVE: DEBE DEVOLVER ESTO EN EL JSON DE ÉXITO
-            return JsonResponse({'success': True, 'id': cliente.id})
-            
+            try:
+                cliente = form.save()
+                
+                if is_ajax:
+                    # Se incluye 'success': True para consistencia con el frontend
+                    return JsonResponse({
+                        'success': True,  
+                        'id': cliente.id,
+                        'nombre': cliente.nombre,
+                        'telefono': cliente.telefono,
+                        'email': cliente.email or '',
+                        'direccion': cliente.direccion or '',
+                        'localidad': cliente.localidad or '',
+                        'provincia': cliente.provincia or '',
+                        'comentarios': cliente.comentarios or ''
+                    })
+                else:
+                    return redirect('vista_clientes')
+                    
+            except Exception as e:
+                if is_ajax:
+                    return JsonResponse({'success': False, 'errors': {'general': [str(e)]}}, status=500)
+                else:
+                    return render(request, 'ordenes/crear_cliente.html', {'form': form, 'error': str(e)})
         else:
-            # Si hay errores de validación
-            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+            # Formulario inválido
+            if is_ajax:
+                return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+            else:
+                return render(request, 'ordenes/crear_cliente.html', {'form': form})
     
-    # 💥 ESTA ES LA FUNCIÓN QUE FALTA O ESTÁ MAL NOMBRADA 💥
+    else:
+        # GET: Mostrar formulario
+        form = ClienteForm()
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        template = 'ordenes/form_cliente_parcial.html' if is_ajax else 'ordenes/crear_cliente.html'
+        
+        return render(request, template, {'form': form, 'cliente_id': None}) 
+
+    
 def editar_cliente_ajax(request, cliente_id):
-    # 1. Obtener el cliente existente
+    """Vista para EDITAR un cliente existente."""
     cliente = get_object_or_404(Cliente, pk=cliente_id)
     
     if request.method == 'POST':
-        # 2. Manejar la Edición (Guardar cambios)
         form = ClienteForm(request.POST, instance=cliente)
         if form.is_valid():
             form.save()
             return JsonResponse({'success': True, 'action': 'updated'})
         else:
-            # Errores de validación
             return JsonResponse({'success': False, 'errors': form.errors}, status=400)
     
     else:
-        # 3. Petición GET: Cargar el formulario pre-rellenado para mostrar en la ventana
         form = ClienteForm(instance=cliente)
-        
-        # Usamos la misma plantilla parcial para el formulario de edición
         return render(request, 'ordenes/form_cliente_parcial.html', {
             'form': form,
-            'cliente_id': cliente_id # Pasamos el ID para que la plantilla sepa que es modo edición
+            'cliente_id': cliente_id 
         })
         
 @require_POST
 def eliminar_clientes_ajax(request):
-    # Esta es la función que debe existir en views.py
+    """Vista para eliminar clientes de forma masiva (AJAX)."""
     cliente_ids = request.POST.getlist('cliente_ids[]') 
     
     if not cliente_ids:
         return JsonResponse({'success': False, 'message': 'No se proporcionaron IDs.'}, status=400)
 
-    # La eliminación
     delete_count = Cliente.objects.filter(id__in=cliente_ids).delete()
     
     return JsonResponse({
         'success': True,
-        'count': delete_count[0], # Número de clientes eliminados
+        'count': delete_count[0], 
     })
+
+
+@csrf_exempt
+def eliminar_cliente(request, cliente_id):
+    """Eliminar un único cliente (URL separada)."""
+    if request.method == 'POST':
+        Cliente.objects.filter(id=cliente_id).delete()
+        return HttpResponse("Eliminado")
+    return HttpResponse("Método no permitido", status=405)

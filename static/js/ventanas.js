@@ -98,7 +98,7 @@ function abrirVentana(id, url) {
                 // refrescar lista clientes parcial si existe
                 const vClientesCont = document.getElementById('contenido-ventana-clientes');
                 if (vClientesCont) {
-                    $(vClientesCont).load('/clientes/parcial/', function (resp2, status2, xhr2) {
+                    $(vClientesCont).load('/ordenes/clientes/parcial/', function (resp2, status2, xhr2) {
                         if (status2 === 'error') {
                             vClientesCont.innerHTML = `<div class='text-danger'>Error al refrescar lista (${xhr2.status}).</div>`;
                             return;
@@ -276,7 +276,7 @@ window.addEventListener('message', function (e) {
     }
 
     // Recargar parcial via fetch y actualizar
-    fetch('/clientes/parcial/')
+    fetch('/ordenes/clientes/parcial/')
         .then(res => res.text())
         .then(html => {
             cont.innerHTML = html;

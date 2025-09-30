@@ -1,72 +1,50 @@
-
 from django.urls import path
-from . import views
-from .views import (
-    OrdenCreateView,
-    crear_orden,
-    crear_orden_integrada,
-    buscar_clientes,
-    buscar_equipo_por_imei,
-    panel_principal,
-    vista_equipos,
-    vista_clientes,
-    vista_historial,
-    vista_equipos_parcial,
-    vista_clientes_parcial,
-    vista_ordenes_parcial,
-    vista_historial_parcial,  # ← corregido si existe
-    detalle_orden_modal,
-    nuevo_cliente_modal,
-    editar_cliente_modal,
-    eliminar_cliente,
-    
-    
-)
-
+from . import views # ⬅️ Solo importamos el módulo 'views' completo
+# ❌ Eliminamos la importación explícita de funciones que causaba el error:
+# from .views import ( ... ) 
 
 urlpatterns = [
     # Panel principal
-    path('', panel_principal, name='panel_principal'),
-    path('panel/', panel_principal, name='panel_principal'),
+    path('', views.panel_principal, name='panel_principal'),
+    path('panel/', views.panel_principal, name='panel_principal'),
 
     # Crear orden
-    path('crear/', crear_orden, name='crear_orden'),
-    path('crear-integrada/', crear_orden_integrada, name='crear_orden_integrada'),
-    path('orden/nueva/', OrdenCreateView.as_view(), name='orden_nueva'),
+    path('crear/', views.crear_orden, name='crear_orden'),
+    path('crear-integrada/', views.crear_orden_integrada, name='crear_orden_integrada'),
+    path('orden/nueva/', views.OrdenCreateView.as_view(), name='orden_nueva'),
 
     # Buscar cliente y equipo
-    path('buscar-clientes/', buscar_clientes, name='buscar_clientes'),
-    path('buscar-equipo/', buscar_equipo_por_imei, name='buscar_equipo_por_imei'),
+    path('buscar-clientes/', views.buscar_clientes, name='buscar_clientes'),
+    path('buscar-equipo/', views.buscar_equipo_por_imei, name='buscar_equipo_por_imei'),
 
     # Vistas principales
-    path('vista-equipos/', vista_equipos, name='vista_equipos'),
-    path('vista-clientes/', vista_clientes, name='vista_clientes'),
-    path('vista-historial/', vista_historial, name='vista_historial'),
+    path('vista-equipos/', views.vista_equipos, name='vista_equipos'),
+    path('vista-clientes/', views.vista_clientes, name='vista_clientes'),
+    # 💥 Usamos views.vista_historial
+    path('vista-historial/', views.vista_historial, name='vista_historial'), 
 
     # Vistas parciales
-    path('equipos/parcial/', vista_equipos_parcial, name='vista_equipos_parcial'),
-    path('clientes/parcial/', vista_clientes_parcial, name='vista_clientes_parcial'),
-    path('ordenes/parcial/', vista_ordenes_parcial, name='vista_ordenes_parcial'),
-    path('historial/parcial/', vista_historial_parcial, name='vista_historial_parcial'),
+    path('equipos/parcial/', views.vista_equipos_parcial, name='vista_equipos_parcial'),
+    path('clientes/parcial/', views.vista_clientes_parcial, name='vista_clientes_parcial'),
+    path('ordenes/parcial/', views.vista_ordenes_parcial, name='vista_ordenes_parcial'),
+    path('historial/parcial/', views.vista_historial_parcial, name='vista_historial_parcial'),
 
-    # Modales
-    path('detalle/<int:orden_id>/', detalle_orden_modal, name='detalle_orden_modal'),
-    path('clientes/nuevo/', nuevo_cliente_modal, name='nuevo_cliente_modal'),
-    path('clientes/editar/<int:cliente_id>/', editar_cliente_modal, name='editar_cliente_modal'),
-    path('clientes/eliminar/<int:cliente_id>/', eliminar_cliente, name='eliminar_cliente'),
+    # Modales - Órdenes
+    path('detalle/<int:orden_id>/', views.detalle_orden_modal, name='detalle_orden_modal'),
 
-    #Historial parcial
-    path('historial/parcial/', vista_historial_parcial, name='vista_historial_parcial'),
-
-    # Crear Cliente nuevo
-
-     # URL usada para ABRIR y GUARDAR el formulario
-    path('clientes/nuevo/', views.guardar_cliente_ajax, name='guardar_cliente'), 
+    # ========================================
+    # CLIENTES - URLs consolidadas y sin duplicados
+    # ========================================
     
-    # 🎯 NUEVA URL para EDITAR/CARGAR el formulario de un cliente
+    # Crear nuevo cliente (GET: formulario, POST: guardar)
+    path('clientes/nuevo/', views.guardar_cliente_ajax, name='guardar_cliente'),
+    
+    # Editar cliente existente
     path('clientes/editar/<int:cliente_id>/', views.editar_cliente_ajax, name='editar_cliente'),
     
-    # 🎯 NUEVA URL para la eliminación masiva
+    # Eliminar varios clientes (AJAX)
     path('clientes/eliminar/', views.eliminar_clientes_ajax, name='eliminar_clientes_ajax'),
-
+    
+    # Eliminar un cliente específico
+    path('clientes/eliminar/<int:cliente_id>/', views.eliminar_cliente, name='eliminar_cliente'),
 ]

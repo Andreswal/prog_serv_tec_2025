@@ -50,9 +50,9 @@
 
   <div id="menu" class="mb-3">
     <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('orden', '/ordenes/crear-integrada/')">🛠 Crear Orden</button>
-    <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('equipos', '/equipos/parcial/')">📦 Equipos en Taller</button>
-    <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('clientes', '/clientes/parcial/')">👤 Clientes</button>
-    <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('historial', '/historial/parcial/')">📋 Historial</button>
+    <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('equipos', '/ordenes/equipos/parcial/')">📦 Equipos en Taller</button>
+    <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('clientes', '/ordenes/clientes/parcial/')">👤 Clientes</button>
+    <button class="btn btn-outline-primary mr-2" onclick="abrirVentana('historial', '/ordenes/historial/parcial/')">📋 Historial</button>
   </div>
   
 
@@ -66,7 +66,7 @@
   <script>
     window.addEventListener('message', function(event) {
       if (event.data.abrir === 'clientes') {
-        abrirVentana('clientes', '/clientes/parcial/');
+        abrirVentana('clientes', '/ordenes/clientes/parcial/');
       }
     });
   </script>

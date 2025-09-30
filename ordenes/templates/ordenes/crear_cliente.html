@@ -1,84 +1,125 @@
-<h3>➕ Nuevo Cliente</h3>
-
-<form id="form-nuevo-cliente" method="post" action="{% url 'clientes:nuevo' %}">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit" class="btn btn-primary">Guardar</button>
-</form>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const form = document.getElementById('form-nuevo-cliente');
-  if (!form) return;
-
-  form.addEventListener('submit', async function (e) {
-    e.preventDefault();
-
-    const btn = form.querySelector('button[type="submit"]');
-    const originalText = btn ? btn.innerText : null;
-    if (btn) {
-      btn.disabled = true;
-      btn.innerText = 'Guardando...';
+{% load crispy_forms_tags %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Nuevo Cliente</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      padding: 20px;
+      background: #f8f9fa;
     }
+    .alert {
+      display: none;
+      margin-bottom: 15px;
+    }
+    .alert.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <h3>➕ Nuevo Cliente</h3>
 
-    const data = new FormData(form);
+    <div id="alert-mensaje" class="alert" role="alert"></div>
 
-    try {
-      const res = await fetch(form.action, {
-        method: 'POST',
-        body: data,
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest' // marca como AJAX para el servidor
-        }
-      });
+    <form id="form-nuevo-cliente" method="post" action="{% url 'guardar_cliente' %}">
+      {% csrf_token %}
+      {{ form.as_p }}
+      
+      <div class="mt-3">
+        <button type="submit" class="btn btn-primary" id="btn-guardar">
+          Guardar Cliente
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="cerrarVentana()">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  </div>
 
-      // Intentamos parsear JSON
-      const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        const json = await res.json();
-        if (json.ok) {
-          // Emitir señal global que escucha ventanas.js
-          window.postMessage({ accion: 'cliente_creado', cliente_id: json.cliente_id }, window.location.origin);
-          // También añadimos un pequeño marcador por compatibilidad si se usara
-          const marker = document.createElement('div');
-          marker.id = 'cliente-creado-marker';
-          marker.dataset.accion = 'cliente_creado';
-          document.body.appendChild(marker);
-        } else {
-          // Mostrar errores recibidos (si tu view los envía)
-          console.error('Errores al guardar cliente:', json.errors || json);
-          // Aquí podés renderizar errores en el form si querés
-          alert('No se pudo guardar el cliente. Revisa los datos.');
-        }
-      } else {
-        // Si el servidor devuelve HTML (por ejemplo, la página con el formulario y errores)
-        const html = await res.text();
-
-        // Si la respuesta HTML contiene algún indicador de éxito que quieras detectar:
-        if (html.includes('cliente creado') || html.includes('Cliente creado')) {
-          window.postMessage({ accion: 'cliente_creado' }, window.location.origin);
-        } else {
-          // Reemplazar el form por el HTML devuelto (para mostrar errores)
-          const temp = document.createElement('div');
-          temp.innerHTML = html;
-          const nuevoForm = temp.querySelector('#form-nuevo-cliente') || temp.querySelector('form');
-          if (nuevoForm) {
-            form.replaceWith(nuevoForm);
-          } else {
-            // como fallback, reemplazamos todo el body del contenedor
-            document.body.innerHTML = html;
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error al enviar el formulario:', err);
-      alert('Error en la comunicación con el servidor. Reintenta.');
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        if (originalText) btn.innerText = originalText;
+  <script>
+    function mostrarAlerta(mensaje, tipo) {
+      const alert = document.getElementById('alert-mensaje');
+      if (alert) {
+        alert.className = 'alert alert-' + tipo + ' show';
+        alert.textContent = mensaje;
       }
     }
-  });
-});
-</script>
+
+    function cerrarVentana() {
+      const ventana = document.querySelector('.ventana-flotante');
+      if (ventana) {
+        ventana.remove();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const form = document.getElementById('form-nuevo-cliente');
+      if (!form) {
+        console.error('Formulario no encontrado');
+        return;
+      }
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const btn = document.getElementById('btn-guardar');
+        const originalText = btn ? btn.innerText : null;
+        
+        if (btn) {
+          btn.disabled = true;
+          btn.innerText = 'Guardando...';
+        }
+
+        const data = new FormData(form);
+
+        try {
+          const res = await fetch(form.action, {
+            method: 'POST',
+            body: data,
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          });
+
+          const contentType = res.headers.get('content-type') || '';
+          
+          if (contentType.includes('application/json')) {
+            const json = await res.json();
+            
+            if (json.ok) {
+              console.log('Cliente guardado:', json);
+              mostrarAlerta('Cliente guardado correctamente', 'success');
+              
+              window.postMessage({
+                accion: 'cliente_creado',
+                cliente_id: json.cliente_id,
+                cliente: json
+              }, window.location.origin);
+              
+              if (window.parent !== window) {
+                window.parent.postMessage({
+                  accion: 'cliente_creado',
+                  cliente_id: json.cliente_id,
+                  cliente: json
+                }, '*');
+              }
+              
+              setTimeout(() => {
+                cerrarVentana();
+              }, 1000);
+              
+            } else {
+              console.error('Errores:', json.errors || json);
+              
+              let mensajeError = 'No se pudo guardar el cliente.';
+              if (json.errors) {
+                mensajeError = Object.entries(json.errors)
+                  .map(([campo, errores]) => `${campo}: ${errores.join(', ')}`)
+                  .join(' | ');
+              }
+              
+              mostrarAlerta(mensajeError, 'danger');

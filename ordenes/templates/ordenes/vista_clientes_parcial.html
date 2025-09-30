@@ -11,7 +11,7 @@
         <button type="button" id="btnEliminarSeleccionados" class="btn btn-danger mr-2" disabled>
             Eliminar Seleccionados
         </button>
-        <button type="button" class="btn btn-success" onclick="abrirVentana('form-cliente', '/clientes/nuevo/')">
+        <button type="button" class="btn btn-success" onclick="abrirVentana('nuevo-cliente', '/ordenes/clientes/nuevo/')">
             + Nuevo Cliente
         </button>
     </div>
@@ -54,12 +54,11 @@
 <script>
     // Se mantiene tu lógica de búsqueda aquí.
     $('#btnBuscarCliente').on('click', function(e) { 
-        e.preventDefault(); 
-        const query = $('#busquedaClienteInput').val(); 
-        const nuevaUrl = '/clientes/parcial/?q=' + encodeURIComponent(query); 
-        
-        // Recarga el contenido de la ventana flotante
-        $('#contenido-ventana-clientes').load(nuevaUrl, function(response, status, xhr) {
+    e.preventDefault(); 
+    const query = $('#busquedaClienteInput').val(); 
+    const nuevaUrl = '/ordenes/clientes/parcial/?q=' + encodeURIComponent(query); 
+    
+    $('#contenido-ventana-clientes').load(nuevaUrl, function(response, status, xhr) {
             if (status == "error") {
                 console.error("Error al recargar la búsqueda AJAX:", xhr.status, xhr.statusText, nuevaUrl); 
             }
@@ -141,8 +140,8 @@ document.addEventListener('DOMContentLoaded', function() {
   window.addEventListener('message', function(e) {
     if (e.data && e.data.accion === 'cliente_creado') {
       // Recargar la lista de clientes dentro de la ventana actual
-      fetch('/clientes/parcial/')
-        .then(res => res.text())
+      fetch('/ordenes/clientes/parcial/')
+        .then(res => res.text())
         .then(html => {
           const cont = document.querySelector('#tabla-clientes').parentElement;
           cont.innerHTML = html;
