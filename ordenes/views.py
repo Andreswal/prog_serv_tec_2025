@@ -33,6 +33,7 @@ def crear_orden(request):
     return render(request, 'ordenes/crear_orden.html', {'form': form})
 
 
+# En ordenes/views.py
 def crear_orden_integrada(request):
     if request.method == 'POST':
         cliente_form = ClienteForm(request.POST, prefix='cliente')
@@ -45,21 +46,30 @@ def crear_orden_integrada(request):
              })
 
         with transaction.atomic():
-            cliente = cliente_form.save()
-            imei = equipo_form.cleaned_data.get('imei')
-            equipo = Equipo.objects.filter(imei=imei).first() if imei else None
+            # 1. Crea el cliente (asume que es un cliente nuevo y válido)
+            cliente = cliente_form.save() 
             
+            # 2. Busca y Reutiliza el Equipo (Lógica corregida/mejorada)
+            imei = equipo_form.cleaned_data.get('imei')
+            # 🎯 BUSCAR: Intenta encontrar el equipo por IMEI
+            equipo = None
+            if imei:
+                equipo = Equipo.objects.filter(imei=imei).first() 
+            
+            # 🎯 CREAR: Si no existe, guarda el equipo_form
             if not equipo:
                 equipo = equipo_form.save() 
             
+            # 3. Guarda la Orden
             orden = orden_form.save(commit=False)
             orden.cliente = cliente
             orden.equipo = equipo
             orden.save()
             
-        return redirect('vista_ordenes') # Asume que tienes una URL llamada 'vista_ordenes'
+        return redirect('vista_ordenes') 
     
     else:
+        # GET
         cliente_form = ClienteForm(prefix='cliente')
         equipo_form  = EquipoForm(prefix='equipo')
         orden_form   = OrdenForm(prefix='orden')

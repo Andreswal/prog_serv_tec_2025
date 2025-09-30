@@ -165,22 +165,20 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {number} clienteId El ID del cliente seleccionado.
      * @param {string} clienteNombre El nombre del cliente (opcional, para consola).
      */
-    function seleccionarClienteParaOrden(clienteId, clienteNombre) {
+     function seleccionarClienteParaOrden(clienteId, clienteNombre) {
         // 1. CERRAR la ventana actual (Lista de Clientes)
-        // Asumimos que el ID de la ventana de clientes es 'ventana-clientes'
         const ventanaClientes = document.getElementById('ventana-clientes');
         if (ventanaClientes) {
             ventanaClientes.remove();
         }
         
         // 2. ABRIR la ventana para la nueva orden
-        // La URL lleva el ID del cliente como parámetro GET: /ordenes/nueva/?cliente_id=X
-        const urlOrden = '{% url 'crear_orden_view' %}?cliente_id=' + clienteId;
-
+        // ESTA DEBE SER LA URL CORREGIDA:
+        const urlOrden = '{% url 'crear_orden_integrada_precargada' %}?cliente_id=' + clienteId;
         
-        // El ID de la nueva ventana será 'form-orden-cliente-X'
-        const urlOrden = '{% url 'crear_orden_integrada_precargada' %}?cliente_id=' + clienteId; 
+        const idVentanaOrden = 'form-orden-cliente-' + clienteId; 
         
+        // Asume que la función abrirVentana está definida globalmente (ej. en ventanas.js)
         abrirVentana(idVentanaOrden, urlOrden);
         
         console.log(`Cliente ${clienteId} (${clienteNombre}) seleccionado para nueva orden.`);
